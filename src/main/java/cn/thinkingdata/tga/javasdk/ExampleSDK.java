@@ -7,9 +7,31 @@ import java.util.Map;
 public class ExampleSDK {
 
     public static void main(String[] args) throws Exception {
-        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer("/root/javasdktest/logdata", 100));
-//		ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("http://sdk.tga.thinkinggame.cn:9080/logagent", "test-logagent"));
+        //LoggerConsumer 有三种实例方式，根据业务需求设置，选择一种即可
+        /**
+         * 1.该方式在1.3.1版本后不默认以大小切分文件，只按天切分文件
+         */
+        String log_dirctory = "/home/logdata";  //设定logbus监控的目录
+        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(log_dirctory));
+        /**
+         * 2.该方式可以设置文件大小切分，以天切分为前提,这里设置的是5GB
+         */
+        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(log_dirctory,5*1024));
+        /**
+         * 3.该方式是在版本1.2.0以后的实例，之前的实例方式也保留着，版本1.3.1以后默认大小1GB 取消，用户可根据数据量设计按小时切分还是按大小切分，默认按天切分
+         */
+        //ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory);
+        //config.setRotateMode(ThinkingDataAnalytics.LoggerConsumer.RotateMode.DAILY);//可以设置是按天(DAILY)切分，还是按小时（HOURLY）切分，默认按天切分文件，可不设置
+        //config.setFileSize(2*1024);//设置在按天切分的前提下，按大小切分文件，可不设置
+        //config.setBufferSize(8192);//默认是8192字节(8k)然后刷新数据(flush)，可设置字节
+        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
 
+
+        //BatchConsumer
+        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("url", "appid"));
+
+        //DebugConsumer一条一条的发送，用于测试数据格式是否正确
+        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("url", "appid"));
         // 1. 用户匿名访问网站
         String distinct_id = "SDIF21dEJWsI232IdSJ232d2332"; // 用户未登录时，可以使用产品自己生成的cookieId等唯一标识符来标注用户
         Map<String, Object> properties = new HashMap<String, Object>();
@@ -28,7 +50,7 @@ public class ExampleSDK {
         //2.用户注册
         properties.clear();
         properties.put("#time", new Date());
-        tga.track("distinct_id", "account_id", "#signup", properties);
+        tga.track("distinct_id", "account_id", "signup", properties);
         //3.注册用户的基本资料
         properties.clear();
         properties.put("#time", new Date());

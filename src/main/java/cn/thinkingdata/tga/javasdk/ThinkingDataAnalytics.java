@@ -36,7 +36,7 @@ public class ThinkingDataAnalytics {
     private final Consumer consumer ;
     private final Map<String,Object> superProperties;
 
-    private final static String LIB_VERSION = "1.3.0";
+    private final static String LIB_VERSION = "1.3.1";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -269,7 +269,7 @@ public class ThinkingDataAnalytics {
             String log_directory;
             RotateMode rotateMode = RotateMode.DAILY;
             String lockFileName;
-            int maxFileSize = 1024;
+            int fileSize = 0;
             int bufferSize = 8192;
             /**
              * 创建指定日志存放路径的 LoggerConsumer 配置
@@ -284,11 +284,11 @@ public class ThinkingDataAnalytics {
              * 创建指定日志存放路径和日志大小的 LoggerConsumer 配置
              *
              * @param log_directory 日志存放路径
-             * @param maxFileSize 日志大小, 单位 MB, 默认为 1024 MB
+             * @param fileSize 日志大小, 单位 MB, 默认为无限大
              */
-            public Config(String log_directory, int maxFileSize) {
+            public Config(String log_directory, int fileSize) {
                 this.log_directory = log_directory;
-                this.maxFileSize = maxFileSize;
+                this.fileSize = fileSize;
             }
 
             /**
@@ -303,10 +303,10 @@ public class ThinkingDataAnalytics {
             /**
              * 设置日志大小
              *
-             * @param maxFileSize 日志大小，单位 MB
+             * @param fileSize 日志大小，单位 MB
              */
-            public void setFileSize(int maxFileSize) {
-                this.maxFileSize = maxFileSize;
+            public void setFileSize(int fileSize) {
+                this.fileSize = fileSize;
             }
 
             public void setLockFile(String lockFileName) {
@@ -328,7 +328,7 @@ public class ThinkingDataAnalytics {
 
         private final StringBuffer message_buffer = new StringBuffer();
         private final int bufferSize;
-        private final int maxFileSize;
+        private final int fileSize;
 
         private final ThreadLocal<SimpleDateFormat> df;
 
@@ -341,7 +341,7 @@ public class ThinkingDataAnalytics {
          */
         public LoggerConsumer(final Config config) {
             this.fileNamePrefix = config.log_directory + File.separator + "log.";
-            this.maxFileSize = config.maxFileSize;
+            this.fileSize = config.fileSize;
             this.lockFileName = config.lockFileName;
             this.bufferSize = config.bufferSize;
 
@@ -367,10 +367,10 @@ public class ThinkingDataAnalytics {
          * 创建指定日志存放目录的 LoggerConsumer, 并指定单个日志文件大小.
          *
          * @param log_directory 日志目录
-         * @param maxFileSize 单个日志文件大小限制，单位 MB
+         * @param fileSize 单个日志文件大小限制，单位 MB
          */
-        public LoggerConsumer(final String log_directory, int maxFileSize) {
-            this(new Config(log_directory, maxFileSize));
+        public LoggerConsumer(final String log_directory, int fileSize) {
+            this(new Config(log_directory, fileSize));
         }
 
 
@@ -417,16 +417,16 @@ public class ThinkingDataAnalytics {
             String resultPrefix = fileNamePrefix + df.get().format(new Date()) + "_";
             int count = 0;
             String result = resultPrefix + count;
-
-            File target = new File(result);
-            while (target.exists()) {
-                if ((target.length() / (1024 * 1024)) < maxFileSize) {
-                    break;
+            if(fileSize != 0){
+                File target = new File(result);
+                while (target.exists()) {
+                    if ((target.length() / (1024 * 1024)) < fileSize) {
+                        break;
+                    }
+                    result = resultPrefix + (++count);
+                    target = new File(result);
                 }
-                result = resultPrefix + (++count);
-                target = new File(result);
             }
-
             return result;
         }
 
