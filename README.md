@@ -19,7 +19,7 @@
 
 2. 初始化 SDK
 
-您可以通过三种方式获得 SDK 实例:
+您可以通过 3 种方式获得 SDK 实例:
 
 **(1) LoggerConsumer:** 批量实时写本地文件，文件以天/小时为分隔，需要搭配 LogBus 进行上传
 
@@ -31,17 +31,7 @@ ThinkingDataAnalytics ta = new ThinkingDataAnalytics(new ThinkingDataAnalytics.L
 `LOG_DIRECTORY` 为写入本地的文件夹地址，您只需将 LogBus 的监听文件夹地址设置为此处的地址，即可使用 LogBus 进行数据的监听上传。
 
 
-**(2) ProduceKafka:** 实时向 Kafka 写数据，需要搭配 LogBus 从 Kafka 中传输数据
-
-```java
-// 使用 ProduceKafka
-ProduceKafka produce = new ProduceKafka("ip:port","topic");
-
-// 如果Kafka需要其他参数，请使用如下方法添加参数
-// produce.setProps("key","value");
-ThinkingDataAnalytics ta = new ThinkingDataAnalytics(produce);
-```
-**(3) BatchConsumer:** 批量实时地向TA服务器传输数据，不需要搭配传输工具，**<font color="red">不建议在正式环境中使用</font>**
+**(2) BatchConsumer:** 批量实时地向TA服务器传输数据，不需要搭配传输工具，**<font color="red">不建议在正式环境中使用</font>**
 
 ```java
 // 使用BatchConsumer
@@ -57,6 +47,14 @@ http://receiver.ta.thinkingdata.cn/logagent
 如果您使用的是私有化部署的版本，请输入以下 URL:
 
 http://<font color="red">数据采集地址</font>/logagent
+
+**(3) DebugConsumer:** 逐条向 TA 服务器传输数据，在数据校验出错时会抛出异常. **<font color="red">不要在正式环境中使用</font>**
+```java
+ThinkingDataAnalytics ta = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer(SERVER_URL, APP_ID));
+```
+
+DebugConsumer 的初始化参数与 BatchConsumer 一致.
+
 
 ### 2. 使用示例
 

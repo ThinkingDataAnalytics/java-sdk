@@ -36,7 +36,7 @@ public class ThinkingDataAnalytics {
     private final Consumer consumer ;
     private final Map<String,Object> superProperties;
 
-    private final static String LIB_VERSION = "1.2.0";
+    private final static String LIB_VERSION = "1.3.0";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
