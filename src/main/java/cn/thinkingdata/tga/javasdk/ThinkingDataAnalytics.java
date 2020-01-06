@@ -1,19 +1,25 @@
 package cn.thinkingdata.tga.javasdk;
 
 import cn.thinkingdata.tga.javasdk.exception.InvalidArgumentException;
+import cn.thinkingdata.tga.javasdk.util.HttpRequestUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
-import org.apache.commons.codec.binary.Base64;
+import net.jpountz.lz4.LZ4BlockOutputStream;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
+import org.anarres.lzo.LzoAlgorithm;
+import org.anarres.lzo.LzoCompressor;
+import org.anarres.lzo.LzoLibrary;
+import org.anarres.lzo.LzoOutputStream;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.apache.http.util.TextUtils;
@@ -33,17 +39,18 @@ import java.util.zip.GZIPOutputStream;
 
 public class ThinkingDataAnalytics {
 
-    private final Consumer consumer ;
-    private final Map<String,Object> superProperties;
+    private final Consumer consumer;
+    private final Map<String, Object> superProperties;
 
-    private final static String LIB_VERSION = "1.3.1";
+    private final static String LIB_VERSION = "1.4.0";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
-    private final static Pattern KEY_PATTERN = Pattern.compile("^(#[a-z][a-z0-9_]{0,49})|([a-z][a-z0-9_]{0,50})$",Pattern.CASE_INSENSITIVE);
+    private final static Pattern KEY_PATTERN = Pattern.compile("^(#[a-z][a-z0-9_]{0,49})|([a-z][a-z0-9_]{0,50})$", Pattern.CASE_INSENSITIVE);
 
     /**
      * 构造函数.
+     *
      * @param consumer BatchConsumer, LoggerConsumer 等
      */
     public ThinkingDataAnalytics(final Consumer consumer) {
@@ -56,7 +63,8 @@ public class ThinkingDataAnalytics {
         USER_SET("user_set"),
         USER_SET_ONCE("user_setOnce"),
         USER_ADD("user_add"),
-        USER_DEL("user_del");
+        USER_DEL("user_del"),
+        USER_UNSET("user_unset");
 
         private String type;
 
@@ -71,7 +79,8 @@ public class ThinkingDataAnalytics {
 
     /**
      * 删除用户，此操作不可逆
-     * @param account_id 账号 ID
+     *
+     * @param account_id  账号 ID
      * @param distinct_id 访客 ID
      * @throws InvalidArgumentException 数据错误
      */
@@ -82,49 +91,73 @@ public class ThinkingDataAnalytics {
 
     /**
      * 用户属性修改，只支持数字属性增加的接口
-     * @param account_id 账号 ID
+     *
+     * @param account_id  账号 ID
      * @param distinct_id 访客 ID
-     * @param properties 用户属性
+     * @param properties  用户属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_add(String account_id, String distinct_id, Map<String,Object> properties)
+    public void user_add(String account_id, String distinct_id, Map<String, Object> properties)
             throws InvalidArgumentException {
         __add(distinct_id, account_id, DataType.USER_ADD, properties);
     }
 
     /**
      * 设置用户属性. 如果该属性已经存在，该操作无效.
-     * @param account_id 账号 ID
+     *
+     * @param account_id  账号 ID
      * @param distinct_id 访客 ID
-     * @param properties 用户属性
+     * @param properties  用户属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_setOnce(String account_id, String distinct_id, Map<String,Object> properties)
+    public void user_setOnce(String account_id, String distinct_id, Map<String, Object> properties)
             throws InvalidArgumentException {
         __add(distinct_id, account_id, DataType.USER_SET_ONCE, properties);
     }
 
     /**
      * 设置用户属性. 如果属性已经存在，则覆盖; 否则，新创建用户属性
-     * @param account_id 账号 ID
+     *
+     * @param account_id  账号 ID
      * @param distinct_id 访客 ID
-     * @param properties 用户属性
-     * @throws InvalidArgumentException	数据错误
+     * @param properties  用户属性
+     * @throws InvalidArgumentException 数据错误
      */
-    public void user_set(String account_id, String distinct_id, Map<String,Object> properties)
+    public void user_set(String account_id, String distinct_id, Map<String, Object> properties)
             throws InvalidArgumentException {
         __add(distinct_id, account_id, DataType.USER_SET, properties);
     }
 
     /**
-     * 上报事件
-     * @param account_id 账号 ID
-     * @param distinct_id 访客ID
-     * @param event_name 事件名称
-     * @param properties 事件属性
-     * @throws InvalidArgumentException	数据错误
+     * 删除用户属性
+     *
+     * @param account_id  账号 ID
+     * @param distinct_id 访客 ID
+     * @param properties  用户属性
+     * @throws InvalidArgumentException 数据错误
      */
-    public void track(String account_id, String distinct_id, String event_name, Map<String,Object> properties)
+    public void user_unset(String account_id, String distinct_id, String... properties)
+            throws InvalidArgumentException {
+        if (properties == null) {
+            return;
+        }
+        Map<String, Object> prop = new HashMap<>();
+        for (String s : properties) {
+            prop.put(s, 0);
+        }
+        __add(distinct_id, account_id, DataType.USER_UNSET, prop);
+    }
+
+    /**
+     * 上报事件
+     *
+     * @param account_id  账号 ID
+     * @param distinct_id 访客ID
+     * @param event_name  事件名称
+     * @param properties  事件属性
+     * @throws InvalidArgumentException 数据错误
+     */
+    public void track(String account_id, String distinct_id, String event_name, Map<String, Object> properties)
             throws InvalidArgumentException {
         if (TextUtils.isEmpty(event_name)) {
             throw new InvalidArgumentException("The event name must be provided.");
@@ -137,9 +170,9 @@ public class ThinkingDataAnalytics {
         __add(distinct_id, account_id, DataType.TRACK, event_name, all_properties);
     }
 
-    private void __add(String distinct_id, String account_id, DataType type, Map<String,Object> properties)
+    private void __add(String distinct_id, String account_id, DataType type, Map<String, Object> properties)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, type,null, properties);
+        __add(distinct_id, account_id, type, null, properties);
     }
 
     private void __add(String distinct_id, String account_id, DataType type, String event_name, Map<String, Object> properties)
@@ -151,7 +184,7 @@ public class ThinkingDataAnalytics {
         assertProperties(type, properties);
 
         Map<String, Object> finalProperties = (properties == null) ? new HashMap<String, Object>() : new HashMap<>(properties);
-        Map<String,Object> event = new HashMap<String,Object>();
+        Map<String, Object> event = new HashMap<String, Object>();
 
         if (!TextUtils.isEmpty(distinct_id)) {
             event.put("#distinct_id", distinct_id);
@@ -171,8 +204,6 @@ public class ThinkingDataAnalytics {
         if (finalProperties.containsKey("#ip")) {
             event.put("#ip", finalProperties.get("#ip"));
             finalProperties.remove("#ip");
-        } else {
-            event.put("#ip", "");
         }
 
         event.put("#type", type.getType());
@@ -227,6 +258,7 @@ public class ThinkingDataAnalytics {
 
     /**
      * 设置公共事件属性. 公共事件属性会添加到每个事件的属性中上报
+     *
      * @param properties 公共属性
      */
     public void setSuperProperties(Map<String, Object> properties) {
@@ -256,9 +288,13 @@ public class ThinkingDataAnalytics {
          * 日志切分模式
          */
         public enum RotateMode {
-            /** 按日切分 */
+            /**
+             * 按日切分
+             */
             DAILY,
-            /** 按小时切分 */
+            /**
+             * 按小时切分
+             */
             HOURLY
         }
 
@@ -271,6 +307,7 @@ public class ThinkingDataAnalytics {
             String lockFileName;
             int fileSize = 0;
             int bufferSize = 8192;
+
             /**
              * 创建指定日志存放路径的 LoggerConsumer 配置
              *
@@ -284,7 +321,7 @@ public class ThinkingDataAnalytics {
              * 创建指定日志存放路径和日志大小的 LoggerConsumer 配置
              *
              * @param log_directory 日志存放路径
-             * @param fileSize 日志大小, 单位 MB, 默认为无限大
+             * @param fileSize      日志大小, 单位 MB, 默认为无限大
              */
             public Config(String log_directory, int fileSize) {
                 this.log_directory = log_directory;
@@ -367,7 +404,7 @@ public class ThinkingDataAnalytics {
          * 创建指定日志存放目录的 LoggerConsumer, 并指定单个日志文件大小.
          *
          * @param log_directory 日志目录
-         * @param fileSize 单个日志文件大小限制，单位 MB
+         * @param fileSize      单个日志文件大小限制，单位 MB
          */
         public LoggerConsumer(final String log_directory, int fileSize) {
             this(new Config(log_directory, fileSize));
@@ -417,7 +454,7 @@ public class ThinkingDataAnalytics {
             String resultPrefix = fileNamePrefix + df.get().format(new Date()) + "_";
             int count = 0;
             String result = resultPrefix + count;
-            if(fileSize != 0){
+            if (fileSize > 0) {
                 File target = new File(result);
                 while (target.exists()) {
                     if ((target.length() / (1024 * 1024)) < fileSize) {
@@ -519,8 +556,8 @@ public class ThinkingDataAnalytics {
 
     public static class BatchConsumer implements Consumer {
 
-        private Integer batchSize = 20;
-        private Integer interval = 3;
+        private final Integer batchSize;
+        private final Integer interval;
         private Long lastFlushTime = System.currentTimeMillis();
         private final Object messageLock = new Object();
         private List<Map<String, Object>> message_channel;
@@ -530,27 +567,85 @@ public class ThinkingDataAnalytics {
          * 创建指定接收端地址和 APP ID 的 BatchConsumer
          *
          * @param serverUrl 接收端地址
-         * @param appId APP ID
+         * @param appId     APP ID
          */
         public BatchConsumer(String serverUrl, String appId) throws URISyntaxException {
-            this.message_channel = new CopyOnWriteArrayList<>();
-            httpService = new HttpService(new URI(serverUrl), appId);
+            this(serverUrl, appId, 20, null, 3);
         }
+
+        /**
+         *
+         * @param serverUrl 接收端地址
+         * @param appId     APP ID
+         * @param config    BatchConsumer配置类
+         * @throws URISyntaxException
+         */
+        public BatchConsumer(String serverUrl, String appId,Config config) throws URISyntaxException {
+            URI uri = new URI(serverUrl);
+            URI url = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
+                    "/sync_server", uri.getQuery(), uri.getFragment());
+            httpService = new HttpService(url, appId);
+            this.batchSize = config.batchSize;
+            this.interval = config.interval;
+            this.httpService.compress = config.compress;
+            this.message_channel = new LinkedList<>();
+        }
+
 
         /**
          * 创建指定接收端地址和 APP ID 的 BatchConsumer，并设定 batchSize, 网络请求 timeout, 发送频次
          *
          * @param serverUrl 接收端地址
-         * @param appId APP ID
+         * @param appId     APP ID
          * @param batchSize 缓存数目上线
-         * @param timeout 超时时长，单位 ms
-         * @param interval 发送间隔，单位秒
+         * @param timeout   超时时长，单位 ms
+         * @param interval  发送间隔，单位秒
          */
-        public BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, int interval) throws URISyntaxException {
-            this.message_channel = new CopyOnWriteArrayList<>();
+        public BatchConsumer(String serverUrl, String appId, int batchSize, Integer timeout, int interval) throws URISyntaxException {
+            this.message_channel = new LinkedList<>();
             this.batchSize = batchSize;
             this.interval = interval;
-            httpService = new HttpService(new URI(serverUrl), appId, timeout);
+            URI uri = new URI(serverUrl);
+            URI url = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
+                    "/sync_server", uri.getQuery(), uri.getFragment());
+            httpService = new HttpService(url, appId, timeout);
+        }
+
+        /**
+         * BatchConsumer 的 配置类
+         */
+        public static class Config {
+            private Integer batchSize = 20;
+            private Integer interval = 3;
+            private String compress="gzip";
+
+            public Config() {
+            }
+
+            /**
+             *
+             * @param batchSize BatchConsumer的flush条数，缓存数目
+             */
+            public void setBatchSize(Integer batchSize) {
+                this.batchSize = batchSize;
+            }
+
+            /**
+             *
+             * @param interval 发送间隔，单位秒
+             */
+
+            public void setInterval(Integer interval) {
+                this.interval = interval;
+            }
+
+            /**
+             *
+             * @param compress BatchConsumer的压缩方式
+             */
+            public void setCompress(String compress) {
+                this.compress = compress;
+            }
         }
 
         @Override
@@ -572,6 +667,8 @@ public class ThinkingDataAnalytics {
                     List<Map<String, Object>> messageList;
                     if (message_channel.size() > batchSize) {
                         messageList = message_channel.subList(0, batchSize);
+                    } else if (message_channel.size() == 0) {
+                        return;
                     } else {
                         messageList = message_channel;
                     }
@@ -583,6 +680,8 @@ public class ThinkingDataAnalytics {
                     throw new RuntimeException("Failed to for json operations", e);
                 } catch (InvalidArgumentException e) {
                     throw new RuntimeException("Invalid parameter", e);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 } catch (HttpService.ServiceUnavailableException e) {
                     deleteData = false;
                     e.printStackTrace();
@@ -601,10 +700,11 @@ public class ThinkingDataAnalytics {
 
         @Override
         public void close() {
-            while(message_channel.size() > 0) {
+            while (message_channel.size() > 0) {
                 flush();
             }
         }
+
     }
 
     public static class DebugConsumer implements Consumer {
@@ -612,15 +712,20 @@ public class ThinkingDataAnalytics {
 
         /**
          * 创建指定接收端地址和 APP ID 的 DebugConsumer
+         *
          * @param serverUrl 接收端地址
-         * @param appId APP ID
+         * @param appId     APP ID
          */
         public DebugConsumer(String serverUrl, String appId) throws URISyntaxException {
+            this(serverUrl, appId, true);
+        }
+
+        public DebugConsumer(String serverUrl, String appId, boolean writeData) throws URISyntaxException {
             URI uri = new URI(serverUrl);
             URI restfulUri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
-                    "/sync_data", uri.getQuery(), uri.getFragment());
+                    "/data_debug", uri.getQuery(), uri.getFragment());
 
-            httpService = new HttpService(restfulUri, appId);
+            httpService = new HttpService(restfulUri, appId, writeData);
             httpService.setDebugMode();
         }
 
@@ -644,61 +749,146 @@ public class ThinkingDataAnalytics {
         public void close() {
 
         }
+
     }
 
-    private static class HttpService {
-        public enum CompressMode {
-            GZIP, DEBUG
+    private static class HttpService implements Closeable {
+
+        public enum ConsumeMode {
+            BATCH, DEBUG
         }
 
-        private CompressMode compressMode = CompressMode.GZIP;
+        private ConsumeMode consumeMode = ConsumeMode.BATCH;
 
         private final URI serverUri;
         private final String appId;
-        private Integer connectTimeout = 30000;
+        private Boolean writeData = true;
+        private String compress = "gzip";
+        private Integer connectTimeout = null;
+        private CloseableHttpClient httpClient = null;
 
         void setDebugMode() {
-            this.compressMode = CompressMode.DEBUG;
+            this.consumeMode = ConsumeMode.DEBUG;
         }
+
 
         private HttpService(URI server_uri, String appId, Integer timeout) {
             this(server_uri, appId);
             this.connectTimeout = timeout;
         }
 
+        private HttpService(URI server_uri, String appId, boolean writeData) {
+            this(server_uri, appId);
+            this.writeData = writeData;
+        }
+
         private HttpService(URI server_uri, String appId) {
+            this.httpClient = HttpRequestUtil.getHttpClient();
             this.serverUri = server_uri;
             this.appId = appId;
         }
 
-        public void send(final String data) throws ServiceUnavailableException, InvalidArgumentException {
-            CloseableHttpResponse response = null;
-
-            try (CloseableHttpClient httpclient = HttpClients.custom().build()) {
-                RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(connectTimeout + 10000).setConnectTimeout(30000).build();
-                HttpPost httpPost = new HttpPost(serverUri);
-
-                HttpEntity params = (compressMode == CompressMode.GZIP) ? getGzipStringEntity(data) : getDebugHttpEntity(data);
-                httpPost.setEntity(params);
-
-                httpPost.addHeader("appid", this.appId);
-                httpPost.addHeader("user-agent", "java_sdk_" + LIB_VERSION);
-                httpPost.addHeader("version", LIB_VERSION);
+        public synchronized void send(final String data) throws ServiceUnavailableException, InvalidArgumentException, IOException {
+            HttpPost httpPost = new HttpPost(serverUri);
+            HttpEntity params = (consumeMode == ConsumeMode.BATCH) ? getBatchHttpEntity(data) : getDebugHttpEntity(data);
+            httpPost.setEntity(params);
+            httpPost.addHeader("appid", this.appId);
+            httpPost.addHeader("user-agent", "java_sdk_" + LIB_VERSION);
+            httpPost.addHeader("version", LIB_VERSION);
+            httpPost.addHeader("compress", compress);
+            if (this.connectTimeout != null) {
+                RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(connectTimeout + 10000).setConnectTimeout(connectTimeout).build();
                 httpPost.setConfig(requestConfig);
-
-                response = httpclient.execute(httpPost);
-
+            }
+            try (CloseableHttpResponse response = this.httpClient.execute(httpPost)) {
                 int statusCode = response.getStatusLine().getStatusCode();
-
                 if (statusCode < 200 || statusCode > 300) {
                     throw new ServiceUnavailableException("Cannot post message to " + this.serverUri);
                 }
-
                 String result = EntityUtils.toString(response.getEntity(), "UTF-8");
                 JSONObject resultJson = JSONObject.parseObject(result);
+                checkingRetCode(resultJson);
+            } catch (IOException e) {
+                throw new ServiceUnavailableException("Cannot post message to " + this.serverUri);
+            } finally {
+                httpPost.releaseConnection();
+            }
+        }
 
+        UrlEncodedFormEntity getDebugHttpEntity(final String data) throws IOException {
+            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+            nameValuePairs.add(new BasicNameValuePair("source", "server"));
+            nameValuePairs.add(new BasicNameValuePair("appid", this.appId));
+            nameValuePairs.add(new BasicNameValuePair("data", data));
+            if (!this.writeData) {
+                nameValuePairs.add(new BasicNameValuePair("dryRun", String.valueOf(1)));
+            }
+            return new UrlEncodedFormEntity(nameValuePairs, "UTF-8");
+        }
+
+        HttpEntity getBatchHttpEntity(final String data) throws IOException, InvalidArgumentException {
+            byte[] dataCompressed = null;
+            byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
+            if ("gzip".equalsIgnoreCase(this.compress)) {
+                dataCompressed = gzipCompress(dataBytes);
+            } else if ("lzo".equalsIgnoreCase(this.compress)) {
+                dataCompressed = lzoCompress(dataBytes);
+            } else if ("lz4".equalsIgnoreCase(this.compress)) {
+                dataCompressed = lz4Compress(dataBytes);
+            } else if ("none".equalsIgnoreCase(this.compress)) {
+                dataCompressed = dataBytes;
+            }else {
+                throw new InvalidArgumentException("compress input error.");
+            }
+            return new ByteArrayEntity(dataCompressed);
+        }
+
+        private static byte[] lzoCompress(byte[] srcBytes) throws IOException {
+            LzoCompressor compressor = LzoLibrary.getInstance().newCompressor(
+                    LzoAlgorithm.LZO1X, null);
+
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            LzoOutputStream cs = new LzoOutputStream(os, compressor);
+            cs.write(srcBytes);
+            cs.close();
+            return os.toByteArray();
+        }
+
+        private static byte[] lz4Compress(byte[] srcBytes) throws IOException {
+            LZ4Factory factory = LZ4Factory.fastestInstance();
+            ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
+            LZ4Compressor compressor = factory.fastCompressor();
+            LZ4BlockOutputStream compressedOutput = new LZ4BlockOutputStream(
+                    byteOutput, 2048, compressor);
+            compressedOutput.write(srcBytes);
+            compressedOutput.close();
+            return byteOutput.toByteArray();
+        }
+
+        private static byte[] gzipCompress(byte[] srcBytes) throws IOException {
+            GZIPOutputStream gzipOut = null;
+            try {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                gzipOut = new GZIPOutputStream(out);
+                gzipOut.write(srcBytes);
+                gzipOut.close();
+                return out.toByteArray();
+            } finally {
+                if (gzipOut != null) {
+                    gzipOut.close();
+                }
+            }
+
+        }
+
+        private void checkingRetCode(JSONObject resultJson) throws InvalidArgumentException {
+            if (this.consumeMode == ConsumeMode.DEBUG) {
+                if (resultJson.getInteger("errorLevel") != 0) {
+                    throw new InvalidArgumentException(resultJson.toJSONString());
+                }
+            } else if (this.consumeMode == ConsumeMode.BATCH) {
                 int retCode = resultJson.getInteger("code");
-                if (retCode != 0 ) {
+                if (retCode != 0) {
                     if (retCode == -1) {
                         throw new InvalidArgumentException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "invalid data format");
                     } else if (retCode == -2) {
@@ -706,42 +896,10 @@ public class ThinkingDataAnalytics {
                     } else if (retCode == -3) {
                         throw new InvalidArgumentException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "invalid ip transmission");
                     } else {
-                        throw new RuntimeException("Unexpected response return code: "  + retCode);
+                        throw new RuntimeException("Unexpected response return code: " + retCode);
                     }
                 }
-            } catch (IOException e) {
-                throw new ServiceUnavailableException("Cannot post message to " + this.serverUri);
-            } finally {
-                try {
-                    if (response != null) {
-                        response.close();
-                    }
-                } catch (IOException e) {
-                    // ignore
-                }
             }
-        }
-
-
-        UrlEncodedFormEntity getDebugHttpEntity(final String data) throws IOException {
-            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-            nameValuePairs.add(new BasicNameValuePair("debug", String.valueOf(1)));
-            nameValuePairs.add(new BasicNameValuePair("appid", this.appId));
-            nameValuePairs.add(new BasicNameValuePair("data", data));
-            return new UrlEncodedFormEntity(nameValuePairs, "UTF-8");
-        }
-
-        StringEntity getGzipStringEntity(final String data) {
-            ByteArrayOutputStream byteArrayBuffer = new ByteArrayOutputStream();
-            try {
-                GZIPOutputStream var = new GZIPOutputStream(byteArrayBuffer);
-                var.write(data.getBytes(StandardCharsets.UTF_8));
-                var.close();
-            } catch(IOException e) {
-                return null;
-            }
-
-            return new StringEntity(new String(Base64.encodeBase64(byteArrayBuffer.toByteArray())), "UTF-8");
         }
 
         class ServiceUnavailableException extends Exception {
@@ -749,5 +907,11 @@ public class ThinkingDataAnalytics {
                 super(message);
             }
         }
+
+        @Override
+        public void close() {
+
+        }
+
     }
 }
