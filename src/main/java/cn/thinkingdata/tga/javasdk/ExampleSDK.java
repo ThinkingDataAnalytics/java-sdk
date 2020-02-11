@@ -1,5 +1,6 @@
 package cn.thinkingdata.tga.javasdk;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class ExampleSDK {
@@ -17,7 +18,7 @@ public class ExampleSDK {
         /**
          * 2.该方式可以设置文件大小切分，以天切分为前提,这里设置的是5GB
          */
-        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(log_dirctory,5*1024));
+        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(".",5*1024));
         /**
          * 3.该方式是在版本1.2.0以后的实例，之前的实例方式也保留着，版本1.3.1以后默认大小1GB 取消，用户可根据数据量设计按小时切分还是按大小切分，默认按天切分
          */
@@ -50,87 +51,147 @@ public class ExampleSDK {
          * DebugConsumer一条一条的发送，用于测试数据格式是否正确，禁止线上使用！！！
          */
 
-         ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("url", "appid"));
+        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("https://tga.thinkinggame.cn", "1244e1334b46480fa78ee6dfccbe8f3f"));
         //选填，是否入库，默认入库true
         //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("url", "appid",false));
-        // 1. 用户匿名访问网站
-        String account_id = "xxxxx";
+
+        //account_id 和  distinct_id 不能同时为null
+        String account_id = "xu";
         String distinct_id = "SDIF21dEJWsI232IdSJ232d2332"; // 用户未登录时，可以使用产品自己生成的cookieId等唯一标识符来标注用户
         Map<String, Object> properties = new HashMap<>();
-        // 1.1 访问首页
+
 
         // 前面有#开头的property字段，是tga提供给用户的预置字段
         // 对于预置字段，已经确定好了字段类型和字段的显示名
-        properties.clear();
+
+        //track 事件
         properties.put("#time", new Date());                // 这条event发生的时间，如果不设置的话，则默认是当前时间
         properties.put("#ip", "123.123.123.123");           // 请求中能够拿到用户的IP，则把这个传递给tga，tga会自动根据这个解析省份、城市
         properties.put("Channel", "百度");
         properties.put("bool", true);
+        properties.put("#uuid", UUID.randomUUID());          //可不填，只支持UUID标准格式xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
         properties.put("double", 1.11);
-        tga.track(account_id, distinct_id, "test", properties); // 记录访问首页这个event
-        tga.flush();
-        //2.track
-        properties.clear();
-        properties.put("#time", new Date());
-        tga.track(account_id, distinct_id, "signup", properties);
-        //3.user_setOnce
+        List<String> list = new ArrayList<>();              //list只支持String元素，传Object类型的数据到TA最后都会ToString
+        list.add(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()));
+        list.add("20");
+        list.add("20.2");
+        list.add("false");
+        properties.put("list2", list);
+        try {
+            tga.track(account_id, distinct_id, "test", properties); // 记录访问首页这个event
+            tga.flush();
+        } catch (Exception e) {
+            System.out.println("except:"+e);
+        }
+
+        //user_setOnce 只设置一次用户属性
         properties.clear();
         properties.put("#time", new Date());
         properties.put("#ip", "123.123.123.123");
         properties.put("name", "username");
         properties.put("age", 18);
         properties.put("level", 10);
-        tga.user_setOnce(account_id, distinct_id, properties);
+        try {
+            tga.user_setOnce(account_id, distinct_id, properties);
+            tga.flush();
+        } catch (Exception e) {
+            System.out.println("except:"+e);
+        }
 
-        //4.user_set
+
+        //user_set  设置用户属性，每次都更新
         properties.clear();
         properties.put("age", 20);
         properties.put("string1", "222");
         properties.put("key1", "222");
         properties.put("key2", "222");
         properties.put("key3", "222");
-        tga.user_set(account_id, distinct_id, properties);
+        List<String> list1 = new ArrayList<>();
+        list1.add("12.2");
+        list1.add("str");
+        properties.put("arrkey1", list1);
+        properties.put("arrkey2", list1);
+        try {
+            tga.user_set(account_id, distinct_id, properties);
+            tga.flush();
+        } catch (Exception e) {
+            System.out.println("except:"+e);
+        }
 
-        //user_unset
-        //去除account_id账号的一些用户属性,0代表将这个用户的某个属性值删除
-        // 重置单个用户属性
-//        tga.user_unset(account_id,distinct_id,"key1");
-//        // 重置多个用户属性
-//        tga.user_unset(account_id,distinct_id,"key1", "key2", "key3");
-        // 重置多个用户属性，传入字符串数组
-        String[] keys = {"key1", "key2"};
-        tga.user_unset(account_id, distinct_id, keys);
+        //user_unset  去重置单个用户属性
+        try {
+            //重置一个属性
+            //tga.user_unset(account_id,distinct_id,"key1");
+            // 重置多个属性
+            //tga.user_unset(account_id,distinct_id,"key1", "key2", "key3");
+            // 重置多个属性，传入字符串数组
+            String[] keys = {"key1", "key2"};
+            tga.user_unset(account_id, distinct_id, keys);
+        } catch (Exception e) {
+            //do
+            System.out.println("except:"+e);
+        }
 
-        //5.level增加了3级(降了用-3)
+        //level增加了3级(降了用-3)
         properties.clear();
         properties.put("level", 3);
         properties.put("#time", new Date());
         properties.put("testkey", 6666);
-        tga.user_add(account_id, distinct_id, properties);
+        try {
+            tga.user_add(account_id, distinct_id, properties);
+        } catch (Exception e) {
+            //do
+            System.out.println("except:"+e);
+        }
+
+        //user_append 为list 类型追加属性
+        properties.clear();
+        List<String> appendList1 = new ArrayList<>();
+        appendList1.add("12.2");
+        appendList1.add("str");
+        properties.put("arrkey1", appendList1);
+        List<Object> appendList2 = new ArrayList<>();
+        appendList2.add("2");
+        appendList2.add("true");
+        properties.put("arrkey2",appendList2);
+        try {
+            tga.user_append(account_id, distinct_id, properties);
+        } catch (Exception e) {
+            //do
+            System.out.println("except:"+e);
+        }
 
         //*****************************
-        //7.公共属性
+        //公共属性
         HashMap<String, Object> super_properties = new HashMap<String, Object>();
         super_properties.put("#country", "中国");
         super_properties.put("source", "media");
         properties.put("#ip", "123.123.123.123");
         tga.setSuperProperties(super_properties);
-        //6.注册用户购买了商品a和b
+        //other
         properties.clear();
         properties.put("#time", new Date());
         properties.put("Product_Name", "a");
         properties.put("Price", 9.9);
         properties.put("OrderId", "order_id_a");
-        tga.track(account_id, distinct_id, "Product_Purchase", properties);
+        try {
+            tga.track(account_id, distinct_id, "Product_Purchase", properties);
+        } catch (Exception e) {
+            //do
+            System.out.println("except:"+e);
+        }
 
         properties.clear();
         properties.put("#time", new Date());
         properties.put("Product_Name", "b");
         properties.put("Price", 13.2);
         properties.put("OrderId", "order_id_b");
-        tga.track(account_id, distinct_id, "Product_Purchase", properties);
+        try {
+            tga.track(account_id, distinct_id, "Product_Purchase", properties);
+        } catch (Exception e) {
+            //do
+        }
 
-        //8.撤销对商品b的购买
         properties.clear();
         properties.put("#os", "Windows");         //
         properties.put("OrderId", "order_id_b");   // 订单ID
@@ -139,22 +200,34 @@ public class ExampleSDK {
         properties.put("CancelReason", "不想买了"); // 取消订单的原因
         properties.put("CancelTiming", "AfterPay");   // 取消订单的时机
         properties.put("#time", new Date());
-        tga.track(account_id, distinct_id, "CancelOrder", properties);
+        try {
+            tga.track(account_id, distinct_id, "CancelOrder", properties);
+        } catch (Exception e) {
+            //do
+            System.out.println("except:"+e);
+        }
 
-        //9.清除公共属性
+
+        //清除公共属性
         tga.clearSuperProperties();
 
-        //10.用户有浏览了e商品
-        properties.clear();
-        properties.put("#time", new Date());
-        properties.put("#ip", "123.123.123.123");
-        properties.put("Product_Name", "e");
-        tga.track(account_id, distinct_id, "Browse_Product", properties);
 
         //删除用户
-        //tga.user_del(account_id,distinct_id);
+        try {
+            //tga.user_del(account_id,distinct_id);
+        } catch (Exception e) {
+            //do
+            System.out.println("except:"+e);
+        }
 
-        tga.close();
+
+        //关闭TA
+        try {
+            tga.close();
+        } catch (Exception e) {
+            //do
+            System.out.println("except:"+e);
+        }
 
     }
 

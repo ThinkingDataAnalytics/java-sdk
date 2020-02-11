@@ -42,7 +42,7 @@ public class ThinkingDataAnalytics {
     private final Consumer consumer;
     private final Map<String, Object> superProperties;
 
-    private final static String LIB_VERSION = "1.4.0";
+    private final static String LIB_VERSION = "1.5.0";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -64,7 +64,8 @@ public class ThinkingDataAnalytics {
         USER_SET_ONCE("user_setOnce"),
         USER_ADD("user_add"),
         USER_DEL("user_del"),
-        USER_UNSET("user_unset");
+        USER_UNSET("user_unset"),
+        USER_APPEND("user_append");
 
         private String type;
 
@@ -149,6 +150,19 @@ public class ThinkingDataAnalytics {
     }
 
     /**
+     *用户的数组类型的属性追加
+     *
+     * @param account_id  账号 ID
+     * @param distinct_id 访客 ID
+     * @param properties  用户属性
+     * @throws InvalidArgumentException 数据错误
+     */
+    public void user_append(String account_id, String distinct_id, Map<String, Object> properties)
+            throws InvalidArgumentException {
+        __add(distinct_id, account_id, DataType.USER_APPEND, properties);
+    }
+
+    /**
      * 上报事件
      *
      * @param account_id  账号 ID
@@ -181,11 +195,15 @@ public class ThinkingDataAnalytics {
             throw new InvalidArgumentException("account_id or distinct_id must be provided.");
         }
 
-        assertProperties(type, properties);
-
         Map<String, Object> finalProperties = (properties == null) ? new HashMap<String, Object>() : new HashMap<>(properties);
         Map<String, Object> event = new HashMap<String, Object>();
 
+        //#uuid 只支持UUID标准格式xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        if (finalProperties.containsKey("#uuid")) {
+            event.put("#uuid", finalProperties.get("#uuid"));
+            finalProperties.remove("#uuid");
+        }
+        assertProperties(type, finalProperties);
         if (!TextUtils.isEmpty(distinct_id)) {
             event.put("#distinct_id", distinct_id);
         }
@@ -220,7 +238,7 @@ public class ThinkingDataAnalytics {
     }
 
     private void assertProperties(DataType type, final Map<String, Object> properties) throws InvalidArgumentException {
-        if (null == properties) return;
+        if (properties.size() == 0) return;
 
         if (properties.containsKey("#time")) {
             if (!(properties.get("#time") instanceof Date)) {
@@ -240,8 +258,8 @@ public class ThinkingDataAnalytics {
                     if (!(value instanceof Number) && !(property.getKey().startsWith("#"))) {
                         throw new InvalidArgumentException("Only Number is allowed for user_add. Invalid property: " + property.getKey());
                     }
-                } else if (!(value instanceof Number) && !(value instanceof Date) && !(value instanceof String) && !(value instanceof Boolean)) {
-                    throw new InvalidArgumentException("The supported data type including: Number, String, Date, Boolean. Invalid property: " + property.getKey());
+                } else if (!(value instanceof Number) && !(value instanceof Date) && !(value instanceof String) && !(value instanceof Boolean) && !(value instanceof List<?>)) {
+                    throw new InvalidArgumentException("The supported data type including: Number, String, Date, Boolean,List. Invalid property: " + property.getKey());
                 }
             } else {
                 throw new InvalidArgumentException("Invalid key format: " + property.getKey());
