@@ -42,7 +42,7 @@ public class ThinkingDataAnalytics {
     private final Consumer consumer;
     private final Map<String, Object> superProperties;
 
-    private final static String LIB_VERSION = "1.5.0";
+    private final static String LIB_VERSION = "1.5.1";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -239,12 +239,6 @@ public class ThinkingDataAnalytics {
 
     private void assertProperties(DataType type, final Map<String, Object> properties) throws InvalidArgumentException {
         if (properties.size() == 0) return;
-
-        if (properties.containsKey("#time")) {
-            if (!(properties.get("#time") instanceof Date)) {
-                throw new InvalidArgumentException("The type of #time must be Date");
-            }
-        }
 
         for (Entry<String, Object> property : properties.entrySet()) {
             Object value = property.getValue();
