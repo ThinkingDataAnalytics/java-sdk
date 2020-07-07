@@ -42,7 +42,7 @@ public class ThinkingDataAnalytics {
     private final Consumer consumer;
     private final Map<String, Object> superProperties;
 
-    private final static String LIB_VERSION = "1.5.1";
+    private final static String LIB_VERSION = "1.5.2";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -238,7 +238,9 @@ public class ThinkingDataAnalytics {
     }
 
     private void assertProperties(DataType type, final Map<String, Object> properties) throws InvalidArgumentException {
-        if (properties.size() == 0) return;
+        if (properties.size() == 0) {
+            return;
+        }
 
         for (Entry<String, Object> property : properties.entrySet()) {
             Object value = property.getValue();
@@ -568,8 +570,10 @@ public class ThinkingDataAnalytics {
 
     public static class BatchConsumer implements Consumer {
 
-        private final Integer batchSize;
-        private final Integer interval;
+        private final int batchSize;
+        private final int interval;
+
+        private final static int MAX_CACHE_SIZE = 7000;
         private Long lastFlushTime = System.currentTimeMillis();
         private final Object messageLock = new Object();
         private List<Map<String, Object>> message_channel;
@@ -593,14 +597,7 @@ public class ThinkingDataAnalytics {
          * @throws URISyntaxException
          */
         public BatchConsumer(String serverUrl, String appId,Config config) throws URISyntaxException {
-            URI uri = new URI(serverUrl);
-            URI url = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
-                    "/sync_server", uri.getQuery(), uri.getFragment());
-            httpService = new HttpService(url, appId);
-            this.batchSize = config.batchSize;
-            this.interval = config.interval;
-            this.httpService.compress = config.compress;
-            this.message_channel = new LinkedList<>();
+            this(serverUrl, appId, Math.min(config.batchSize,MAX_CACHE_SIZE), config.timeout, config.interval,config.compress);
         }
 
 
@@ -613,23 +610,37 @@ public class ThinkingDataAnalytics {
          * @param timeout   超时时长，单位 ms
          * @param interval  发送间隔，单位秒
          */
-        public BatchConsumer(String serverUrl, String appId, int batchSize, Integer timeout, int interval) throws URISyntaxException {
-            this.message_channel = new LinkedList<>();
+        public BatchConsumer(String serverUrl, String appId, int batchSize,Integer timeout, int interval) throws URISyntaxException {
+            this(serverUrl,appId,Math.min(batchSize,MAX_CACHE_SIZE),timeout,interval,"gzip");
+        }
+        /**
+         * 创建指定接收端地址和 APP ID 的 BatchConsumer，并设定 batchSize, 网络请求 timeout, 发送频次
+         *
+         * @param serverUrl 接收端地址
+         * @param appId     APP ID
+         * @param batchSize 缓存数目上线
+         * @param timeout   超时时长，单位 ms
+         * @param interval  发送间隔，单位秒
+         */
+        public BatchConsumer(String serverUrl, String appId, int batchSize,Integer timeout, int interval,String compress) throws URISyntaxException {
+            this.message_channel = new ArrayList<>();
             this.batchSize = batchSize;
             this.interval = interval;
             URI uri = new URI(serverUrl);
-            URI url = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
+            URI url = new URI(uri.getScheme(),uri.getAuthority(),
                     "/sync_server", uri.getQuery(), uri.getFragment());
             httpService = new HttpService(url, appId, timeout);
+            this.httpService.compress = compress;
         }
 
         /**
          * BatchConsumer 的 配置类
          */
         public static class Config {
-            private Integer batchSize = 20;
+            private Integer batchSize = 2;
             private Integer interval = 3;
             private String compress="gzip";
+            private Integer timeout = null ;
 
             public Config() {
             }
@@ -657,6 +668,10 @@ public class ThinkingDataAnalytics {
              */
             public void setCompress(String compress) {
                 this.compress = compress;
+            }
+
+            public void setTimeout(int timeout){
+                this.timeout = timeout;
             }
         }
 
@@ -696,13 +711,12 @@ public class ThinkingDataAnalytics {
                     throw new RuntimeException(e);
                 } catch (HttpService.ServiceUnavailableException e) {
                     deleteData = false;
-                    e.printStackTrace();
                 } finally {
                     if (deleteData) {
-                        if (message_channel.size() > batchSize) {
-                            message_channel = message_channel.subList(batchSize, message_channel.size());
-                        } else {
-                            message_channel.clear();
+                        message_channel.subList(0,Math.min(message_channel.size(),batchSize)).clear();
+                    }else {
+                        if(message_channel.size() > MAX_CACHE_SIZE){
+                            message_channel.subList(0,message_channel.size()- MAX_CACHE_SIZE).clear();
                         }
                     }
                     lastFlushTime = System.currentTimeMillis();
@@ -777,7 +791,7 @@ public class ThinkingDataAnalytics {
         private Boolean writeData = true;
         private String compress = "gzip";
         private Integer connectTimeout = null;
-        private CloseableHttpClient httpClient = null;
+        private static CloseableHttpClient httpClient;
 
         void setDebugMode() {
             this.consumeMode = ConsumeMode.DEBUG;
@@ -795,7 +809,9 @@ public class ThinkingDataAnalytics {
         }
 
         private HttpService(URI server_uri, String appId) {
-            this.httpClient = HttpRequestUtil.getHttpClient();
+            if (httpClient == null) {
+                httpClient = HttpRequestUtil.getHttpClient();
+            }
             this.serverUri = server_uri;
             this.appId = appId;
         }
@@ -809,12 +825,12 @@ public class ThinkingDataAnalytics {
             httpPost.addHeader("version", LIB_VERSION);
             httpPost.addHeader("compress", compress);
             if (this.connectTimeout != null) {
-                RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(connectTimeout + 10000).setConnectTimeout(connectTimeout).build();
+                RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(connectTimeout + 5000).setConnectTimeout(connectTimeout).build();
                 httpPost.setConfig(requestConfig);
             }
-            try (CloseableHttpResponse response = this.httpClient.execute(httpPost)) {
+            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
                 int statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode < 200 || statusCode > 300) {
+                if (statusCode != 200) {
                     throw new ServiceUnavailableException("Cannot post message to " + this.serverUri);
                 }
                 String result = EntityUtils.toString(response.getEntity(), "UTF-8");
