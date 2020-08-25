@@ -1,3 +1,8 @@
+**1.6.0** (2020/08/25)
+- 新增track_update接口，支持可更新事件
+- 新增track_overwrite接口，支持可重写事件
+- 支持LoggerConsumer前缀名配置
+
 **1.5.3** (2020/07/08)
 - 修复 v1.5.2 找不到 fastjson 依赖问题
 

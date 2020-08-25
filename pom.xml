@@ -4,7 +4,7 @@
 
     <groupId>cn.thinkingdata</groupId>
     <artifactId>thinkingdatasdk</artifactId>
-    <version>1.5.3</version>
+    <version>1.6.0</version>
     <!-- packaging>jar</packaging -->
 
     <name>thinkingdatasdk</name>

@@ -13,8 +13,8 @@ public class ExampleSDK {
         /**
          * 1.该方式在1.3.1版本后不默认以大小切分文件，只按天切分文件
          */
-        //String log_dirctory = "I:\\log\\logdata";  //设定logbus监控的目录
-        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(log_dirctory));
+        String log_dirctory = ".";  //设定logbus监控的目录
+        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(log_dirctory));
         /**
          * 2.该方式可以设置文件大小切分，以天切分为前提,这里设置的是5GB
          */
@@ -51,7 +51,7 @@ public class ExampleSDK {
          * DebugConsumer一条一条的发送，用于测试数据格式是否正确，禁止线上使用！！！
          */
 
-        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("https://tga.thinkinggame.cn", "1244e1334b46480fa78ee6dfccbe8f3f"));
+        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("url","appid"));
         //选填，是否入库，默认入库true
         //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("url", "appid",false));
 
@@ -60,14 +60,12 @@ public class ExampleSDK {
         String distinct_id = "SDIF21dEJWsI232IdSJ232d2332"; // 用户未登录时，可以使用产品自己生成的cookieId等唯一标识符来标注用户
         Map<String, Object> properties = new HashMap<>();
 
-
         // 前面有#开头的property字段，是tga提供给用户的预置字段
         // 对于预置字段，已经确定好了字段类型和字段的显示名
 
         //track 事件
-        properties.put("#time", new Date());                // 这条event发生的时间，如果不设置的话，则默认是当前时间
+        properties.put("#time",new Date());                // 这条event发生的时间，如果不设置的话，则默认是当前时间
         properties.put("#ip", "123.123.123.123");           // 请求中能够拿到用户的IP，则把这个传递给tga，tga会自动根据这个解析省份、城市
-        properties.put("Channel", "百度");
         properties.put("bool", true);
         properties.put("#uuid", UUID.randomUUID());          //可不填，只支持UUID标准格式xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
         properties.put("double", 1.11);
@@ -160,6 +158,30 @@ public class ExampleSDK {
             //do
             System.out.println("except:"+e);
         }
+        //track_update
+        properties.clear();
+        properties.put("price",100);
+        properties.put("status",3);
+         // 上报后事件属性 status 为 3, price 为 100
+        tga.track_update(account_id, distinct_id,"UPDATABLE_EVENT","test_event_id",properties);
+
+       // 上报后同样test_event_id + UPDATABLE_EVENT 的事件属性 status 被更新为 5, price 不变
+        Map<String, Object> protertiesNew = new HashMap<>();
+        protertiesNew.put("status",5);
+        tga.track_update(account_id, distinct_id, "UPDATABLE_EVENT", "test_event_id", protertiesNew);
+        //track_overwrite
+        // 示例： 上报可被重写的事件，假设事件名为 OVERWRITE_EVENT
+        properties.clear();
+        properties.put("price",100);
+        properties.put("status",3);
+        // 上报后事件属性 status 为 3, price 为 100
+        tga.track_overwrite(account_id, distinct_id, "OVERWRITE_EVENT","test_event_id", properties);
+        protertiesNew.clear();
+        protertiesNew.put("status",5);
+
+        //上报后事件属性 status 被更新为 5, price 属性被删除
+        tga.track_overwrite(account_id, distinct_id, "OVERWRITE_EVENT", "test_event_id", protertiesNew);
+
 
         //*****************************
         //公共属性
@@ -180,7 +202,6 @@ public class ExampleSDK {
             //do
             System.out.println("except:"+e);
         }
-
         properties.clear();
         properties.put("#time", new Date());
         properties.put("Product_Name", "b");

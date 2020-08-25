@@ -41,8 +41,9 @@ public class ThinkingDataAnalytics {
 
     private final Consumer consumer;
     private final Map<String, Object> superProperties;
+    private final boolean enableUUID ;
 
-    private final static String LIB_VERSION = "1.5.3";
+    private final static String LIB_VERSION = "1.6.0";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -55,17 +56,29 @@ public class ThinkingDataAnalytics {
      */
     public ThinkingDataAnalytics(final Consumer consumer) {
         this.consumer = consumer;
+        this.enableUUID = false;
+        this.superProperties = new ConcurrentHashMap<String, Object>();
+    }
+
+    public ThinkingDataAnalytics(final Consumer consumer,final boolean enableUUID) {
+        this.consumer = consumer;
+        this.enableUUID = enableUUID;
         this.superProperties = new ConcurrentHashMap<String, Object>();
     }
 
     private enum DataType {
+        /**
+         * 上报数据接口名
+         */
         TRACK("track"),
         USER_SET("user_set"),
         USER_SET_ONCE("user_setOnce"),
         USER_ADD("user_add"),
         USER_DEL("user_del"),
         USER_UNSET("user_unset"),
-        USER_APPEND("user_append");
+        USER_APPEND("user_append"),
+        TRACK_UPDATE("track_update"),
+        TRACK_OVERWRITE("track_overwrite");
 
         private String type;
 
@@ -130,7 +143,7 @@ public class ThinkingDataAnalytics {
     }
 
     /**
-     * 删除用户属性
+     * 删除用户指定的属性
      *
      * @param account_id  账号 ID
      * @param distinct_id 访客 ID
@@ -173,23 +186,55 @@ public class ThinkingDataAnalytics {
      */
     public void track(String account_id, String distinct_id, String event_name, Map<String, Object> properties)
             throws InvalidArgumentException {
-        if (TextUtils.isEmpty(event_name)) {
-            throw new InvalidArgumentException("The event name must be provided.");
-        }
-
         Map<String, Object> all_properties = new HashMap<String, Object>(superProperties);
         if (properties != null) {
             all_properties.putAll(properties);
         }
-        __add(distinct_id, account_id, DataType.TRACK, event_name, all_properties);
+        __add(distinct_id, account_id, DataType.TRACK, event_name,null, all_properties);
+    }
+
+    /**
+     *
+     * @param account_id
+     * @param distinct_id
+     * @param event_name
+     * @param event_id
+     * @param properties
+     * @throws InvalidArgumentException
+     */
+    public void track_update(String account_id, String distinct_id, String event_name,String event_id, Map<String, Object> properties)
+            throws InvalidArgumentException {
+        Map<String, Object> all_properties = new HashMap<String, Object>(superProperties);
+        if (properties != null) {
+            all_properties.putAll(properties);
+        }
+        __add(distinct_id, account_id, DataType.TRACK_UPDATE, event_name,event_id, all_properties);
+    }
+
+    /**
+     *
+     * @param account_id
+     * @param distinct_id
+     * @param event_name
+     * @param event_id
+     * @param properties
+     * @throws InvalidArgumentException
+     */
+    public void track_overwrite(String account_id, String distinct_id, String event_name,String event_id, Map<String, Object> properties)
+            throws InvalidArgumentException {
+        Map<String, Object> all_properties = new HashMap<String, Object>(superProperties);
+        if (properties != null) {
+            all_properties.putAll(properties);
+        }
+        __add(distinct_id, account_id, DataType.TRACK_OVERWRITE, event_name,event_id, all_properties);
     }
 
     private void __add(String distinct_id, String account_id, DataType type, Map<String, Object> properties)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, type, null, properties);
+        __add(distinct_id, account_id, type, null,null, properties);
     }
 
-    private void __add(String distinct_id, String account_id, DataType type, String event_name, Map<String, Object> properties)
+    private void __add(String distinct_id, String account_id, DataType type, String event_name, String event_id,Map<String, Object> properties)
             throws InvalidArgumentException {
         if (TextUtils.isEmpty(account_id) && TextUtils.isEmpty(distinct_id)) {
             throw new InvalidArgumentException("account_id or distinct_id must be provided.");
@@ -202,10 +247,16 @@ public class ThinkingDataAnalytics {
         if (finalProperties.containsKey("#uuid")) {
             event.put("#uuid", finalProperties.get("#uuid"));
             finalProperties.remove("#uuid");
+        }else if(enableUUID){
+            event.put("#uuid", UUID.randomUUID().toString());
         }
         assertProperties(type, finalProperties);
         if (!TextUtils.isEmpty(distinct_id)) {
             event.put("#distinct_id", distinct_id);
+        }
+        if(finalProperties.containsKey("#first_check_id")){
+            event.put("#first_check_id", finalProperties.get("#first_check_id"));
+            finalProperties.remove("#first_check_id");
         }
 
         if (!TextUtils.isEmpty(account_id)) {
@@ -226,7 +277,18 @@ public class ThinkingDataAnalytics {
 
         event.put("#type", type.getType());
 
-        if (type == DataType.TRACK) {
+        if (type == DataType.TRACK || type == DataType.TRACK_OVERWRITE || type == DataType.TRACK_UPDATE) {
+            if (TextUtils.isEmpty(event_name)) {
+                throw new InvalidArgumentException("The event name must be provided.");
+            }
+            if( type == DataType.TRACK_OVERWRITE || type == DataType.TRACK_UPDATE){
+                if (TextUtils.isEmpty(event_id)) {
+                    throw new InvalidArgumentException("The event id must be provided.");
+                }
+            }
+            if(!TextUtils.isEmpty(event_id)){
+              event.put("#event_id",event_id);
+            }
             event.put("#event_name", event_name);
             finalProperties.put("#lib", LIB_NAME);
             finalProperties.put("#lib_version", LIB_VERSION);
@@ -319,9 +381,9 @@ public class ThinkingDataAnalytics {
             String log_directory;
             RotateMode rotateMode = RotateMode.DAILY;
             String lockFileName;
+            String fileNamePrefix;
             int fileSize = 0;
             int bufferSize = 8192;
-
             /**
              * 创建指定日志存放路径的 LoggerConsumer 配置
              *
@@ -372,18 +434,26 @@ public class ThinkingDataAnalytics {
             public void setBufferSize(int bufferSize) {
                 this.bufferSize = bufferSize;
             }
+
+            /**
+             * 设置用户名前缀
+             *
+             * @param fileNamePrefix
+             */
+            public void setFilenamePrefix(String fileNamePrefix) {
+                this.fileNamePrefix = fileNamePrefix;
+            }
         }
 
-        private final String fileNamePrefix;
+        private final String fileName;
         private final String lockFileName;
-
-        private final StringBuffer message_buffer = new StringBuffer();
         private final int bufferSize;
         private final int fileSize;
 
+        private final StringBuffer message_buffer = new StringBuffer();
         private final ThreadLocal<SimpleDateFormat> df;
 
-        private LoggerFileWriter logger_writer;
+        private LoggerFileWriter loggerWriter;
 
         /**
          * 创建指定配置信息的 LoggerConsumer
@@ -391,7 +461,8 @@ public class ThinkingDataAnalytics {
          * @param config LoggerConsumer.Config instance.
          */
         public LoggerConsumer(final Config config) {
-            this.fileNamePrefix = config.log_directory + File.separator + "log.";
+            String fileNamePrefix = config.fileNamePrefix == null ? config.log_directory +  File.separator  :  config.log_directory +  File.separator + config.fileNamePrefix + ".";
+            this.fileName = fileNamePrefix + "log.";
             this.fileSize = config.fileSize;
             this.lockFileName = config.lockFileName;
             this.bufferSize = config.bufferSize;
@@ -408,20 +479,20 @@ public class ThinkingDataAnalytics {
         /**
          * 创建指定日志存放目录的 LoggerConsumer. 单个日志文件大小默认为 1G.
          *
-         * @param log_directory 日志存放目录
+         * @param logDirectory 日志存放目录
          */
-        public LoggerConsumer(final String log_directory) {
-            this(new Config(log_directory));
+        public LoggerConsumer(final String logDirectory) {
+            this(new Config(logDirectory));
         }
 
         /**
          * 创建指定日志存放目录的 LoggerConsumer, 并指定单个日志文件大小.
          *
-         * @param log_directory 日志目录
+         * @param logDirectory 日志目录
          * @param fileSize      单个日志文件大小限制，单位 MB
          */
-        public LoggerConsumer(final String log_directory, int fileSize) {
-            this(new Config(log_directory, fileSize));
+        public LoggerConsumer(final String logDirectory, int fileSize) {
+            this(new Config(logDirectory, fileSize));
         }
 
 
@@ -445,27 +516,27 @@ public class ThinkingDataAnalytics {
                 return;
             }
 
-            String file_name = getFileName();
-            if (logger_writer != null && !logger_writer.getFileName().equals(file_name)) {
-                LoggerFileWriter.removeInstance(logger_writer);
-                logger_writer = null;
+            String fileName = getFileName();
+            if (loggerWriter != null && !loggerWriter.getFileName().equals(fileName)) {
+                LoggerFileWriter.removeInstance(loggerWriter);
+                loggerWriter = null;
             }
 
-            if (logger_writer == null) {
+            if (loggerWriter == null) {
                 try {
-                    logger_writer = LoggerFileWriter.getInstance(file_name, lockFileName);
+                    loggerWriter = LoggerFileWriter.getInstance(fileName, lockFileName);
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
             }
 
-            if (logger_writer.write(message_buffer)) {
+            if (loggerWriter.write(message_buffer)) {
                 message_buffer.setLength(0);
             }
         }
 
         private String getFileName() {
-            String resultPrefix = fileNamePrefix + df.get().format(new Date()) + "_";
+            String resultPrefix = fileName + df.get().format(new Date()) + "_";
             int count = 0;
             String result = resultPrefix + count;
             if (fileSize > 0) {
@@ -484,9 +555,9 @@ public class ThinkingDataAnalytics {
         @Override
         public synchronized void close() {
             this.flush();
-            if (logger_writer != null) {
-                LoggerFileWriter.removeInstance(logger_writer);
-                logger_writer = null;
+            if (loggerWriter != null) {
+                LoggerFileWriter.removeInstance(loggerWriter);
+                loggerWriter = null;
             }
         }
 
@@ -637,7 +708,7 @@ public class ThinkingDataAnalytics {
          * BatchConsumer 的 配置类
          */
         public static class Config {
-            private Integer batchSize = 2;
+            private Integer batchSize = 20;
             private Integer interval = 3;
             private String compress="gzip";
             private Integer timeout = null ;
@@ -701,7 +772,7 @@ public class ThinkingDataAnalytics {
                     }
 
                     String data = JSON.toJSONStringWithDateFormat(messageList, DEFAULT_DATE_FORMAT);
-                    httpService.send(data);
+                    httpService.send(data,messageList.size());
 
                 } catch (JSONException e) {
                     throw new RuntimeException("Failed to for json operations", e);
@@ -760,7 +831,7 @@ public class ThinkingDataAnalytics {
             String data = JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT);
 
             try {
-                httpService.send(data);
+                httpService.send(data,1);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -816,13 +887,15 @@ public class ThinkingDataAnalytics {
             this.appId = appId;
         }
 
-        public synchronized void send(final String data) throws ServiceUnavailableException, InvalidArgumentException, IOException {
+        public synchronized void send(final String data,int dataSize) throws ServiceUnavailableException, InvalidArgumentException, IOException {
             HttpPost httpPost = new HttpPost(serverUri);
             HttpEntity params = (consumeMode == ConsumeMode.BATCH) ? getBatchHttpEntity(data) : getDebugHttpEntity(data);
             httpPost.setEntity(params);
             httpPost.addHeader("appid", this.appId);
-            httpPost.addHeader("user-agent", "java_sdk_" + LIB_VERSION);
-            httpPost.addHeader("version", LIB_VERSION);
+            httpPost.addHeader("TA-Integration-Type", "Java");
+            httpPost.addHeader("TA-Integration-Version", LIB_VERSION);
+            httpPost.addHeader("TA-Integration-Count",String.valueOf(dataSize));
+            httpPost.addHeader("TA_Integration-Extra",compress);
             httpPost.addHeader("compress", compress);
             if (this.connectTimeout != null) {
                 RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(connectTimeout + 5000).setConnectTimeout(connectTimeout).build();
