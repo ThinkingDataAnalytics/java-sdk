@@ -12,7 +12,7 @@
     <dependency>
         <groupId>cn.thinkingdata</groupId>
         <artifactId>thinkingdatasdk</artifactId>
-        <version>1.2.0</version>
+        <version>1.7.0</version>
     </dependency>
 </dependencies>
 ```
