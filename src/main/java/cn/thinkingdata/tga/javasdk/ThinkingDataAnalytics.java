@@ -1,6 +1,8 @@
 package cn.thinkingdata.tga.javasdk;
 
+import cn.thinkingdata.tga.javasdk.exception.IllegalDataException;
 import cn.thinkingdata.tga.javasdk.exception.InvalidArgumentException;
+import cn.thinkingdata.tga.javasdk.exception.NeedRetryException;
 import cn.thinkingdata.tga.javasdk.util.HttpRequestUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
@@ -33,7 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
@@ -41,9 +43,9 @@ public class ThinkingDataAnalytics {
 
     private final Consumer consumer;
     private final Map<String, Object> superProperties;
-    private final boolean enableUUID ;
+    private final boolean enableUUID;
 
-    private final static String LIB_VERSION = "1.6.0";
+    private final static String LIB_VERSION = "1.8.0";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -57,13 +59,13 @@ public class ThinkingDataAnalytics {
     public ThinkingDataAnalytics(final Consumer consumer) {
         this.consumer = consumer;
         this.enableUUID = false;
-        this.superProperties = new ConcurrentHashMap<String, Object>();
+        this.superProperties = new ConcurrentHashMap<>();
     }
 
-    public ThinkingDataAnalytics(final Consumer consumer,final boolean enableUUID) {
+    public ThinkingDataAnalytics(final Consumer consumer, final boolean enableUUID) {
         this.consumer = consumer;
         this.enableUUID = enableUUID;
-        this.superProperties = new ConcurrentHashMap<String, Object>();
+        this.superProperties = new ConcurrentHashMap<>();
     }
 
     private enum DataType {
@@ -80,7 +82,7 @@ public class ThinkingDataAnalytics {
         TRACK_UPDATE("track_update"),
         TRACK_OVERWRITE("track_overwrite");
 
-        private String type;
+        private final String type;
 
         DataType(String type) {
             this.type = type;
@@ -94,63 +96,63 @@ public class ThinkingDataAnalytics {
     /**
      * 删除用户，此操作不可逆
      *
-     * @param account_id  账号 ID
-     * @param distinct_id 访客 ID
+     * @param accountId  账号 ID
+     * @param distinctId 访客 ID
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_del(String account_id, String distinct_id)
+    public void user_del(String accountId, String distinctId)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, DataType.USER_DEL, null);
+        add(distinctId, accountId, DataType.USER_DEL, null);
     }
 
     /**
      * 用户属性修改，只支持数字属性增加的接口
      *
-     * @param account_id  账号 ID
-     * @param distinct_id 访客 ID
-     * @param properties  用户属性
+     * @param accountId  账号 ID
+     * @param distinctId 访客 ID
+     * @param properties 用户属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_add(String account_id, String distinct_id, Map<String, Object> properties)
+    public void user_add(String accountId, String distinctId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, DataType.USER_ADD, properties);
+        add(distinctId, accountId, DataType.USER_ADD, properties);
     }
 
     /**
      * 设置用户属性. 如果该属性已经存在，该操作无效.
      *
-     * @param account_id  账号 ID
-     * @param distinct_id 访客 ID
-     * @param properties  用户属性
+     * @param accountId  账号 ID
+     * @param distinctId 访客 ID
+     * @param properties 用户属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_setOnce(String account_id, String distinct_id, Map<String, Object> properties)
+    public void user_setOnce(String accountId, String distinctId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, DataType.USER_SET_ONCE, properties);
+        add(distinctId, accountId, DataType.USER_SET_ONCE, properties);
     }
 
     /**
      * 设置用户属性. 如果属性已经存在，则覆盖; 否则，新创建用户属性
      *
-     * @param account_id  账号 ID
-     * @param distinct_id 访客 ID
-     * @param properties  用户属性
+     * @param accountId  账号 ID
+     * @param distinctId 访客 ID
+     * @param properties 用户属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_set(String account_id, String distinct_id, Map<String, Object> properties)
+    public void user_set(String accountId, String distinctId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, DataType.USER_SET, properties);
+        add(distinctId, accountId, DataType.USER_SET, properties);
     }
 
     /**
      * 删除用户指定的属性
      *
-     * @param account_id  账号 ID
-     * @param distinct_id 访客 ID
-     * @param properties  用户属性
+     * @param accountId  账号 ID
+     * @param distinctId 访客 ID
+     * @param properties 用户属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_unset(String account_id, String distinct_id, String... properties)
+    public void user_unset(String accountId, String distinctId, String... properties)
             throws InvalidArgumentException {
         if (properties == null) {
             return;
@@ -159,108 +161,106 @@ public class ThinkingDataAnalytics {
         for (String s : properties) {
             prop.put(s, 0);
         }
-        __add(distinct_id, account_id, DataType.USER_UNSET, prop);
+        add(distinctId, accountId, DataType.USER_UNSET, prop);
     }
 
     /**
-     *用户的数组类型的属性追加
+     * 用户的数组类型的属性追加
      *
-     * @param account_id  账号 ID
-     * @param distinct_id 访客 ID
-     * @param properties  用户属性
+     * @param accountId  账号 ID
+     * @param distinctId 访客 ID
+     * @param properties 用户属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void user_append(String account_id, String distinct_id, Map<String, Object> properties)
+    public void user_append(String accountId, String distinctId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, DataType.USER_APPEND, properties);
+        add(distinctId, accountId, DataType.USER_APPEND, properties);
     }
 
     /**
      * 上报事件
      *
-     * @param account_id  账号 ID
-     * @param distinct_id 访客ID
-     * @param event_name  事件名称
-     * @param properties  事件属性
+     * @param accountId  账号 ID
+     * @param distinctId 访客ID
+     * @param eventName  事件名称
+     * @param properties 事件属性
      * @throws InvalidArgumentException 数据错误
      */
-    public void track(String account_id, String distinct_id, String event_name, Map<String, Object> properties)
+    public void track(String accountId, String distinctId, String eventName, Map<String, Object> properties)
             throws InvalidArgumentException {
-        Map<String, Object> all_properties = new HashMap<String, Object>(superProperties);
+        Map<String, Object> allProperties = new HashMap<>(superProperties);
         if (properties != null) {
-            all_properties.putAll(properties);
+            allProperties.putAll(properties);
         }
-        __add(distinct_id, account_id, DataType.TRACK, event_name,null, all_properties);
+        add(distinctId, accountId, DataType.TRACK, eventName, null, allProperties);
     }
 
     /**
-     *
-     * @param account_id
-     * @param distinct_id
-     * @param event_name
-     * @param event_id
+     * @param accountId
+     * @param distinctId
+     * @param eventName
+     * @param eventId
      * @param properties
      * @throws InvalidArgumentException
      */
-    public void track_update(String account_id, String distinct_id, String event_name,String event_id, Map<String, Object> properties)
+    public void track_update(String accountId, String distinctId, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        Map<String, Object> all_properties = new HashMap<String, Object>(superProperties);
+        Map<String, Object> allProperties = new HashMap<>(superProperties);
         if (properties != null) {
-            all_properties.putAll(properties);
+            allProperties.putAll(properties);
         }
-        __add(distinct_id, account_id, DataType.TRACK_UPDATE, event_name,event_id, all_properties);
+        add(distinctId, accountId, DataType.TRACK_UPDATE, eventName, eventId, allProperties);
     }
 
     /**
-     *
-     * @param account_id
-     * @param distinct_id
-     * @param event_name
-     * @param event_id
+     * @param accountId
+     * @param distinctId
+     * @param eventName
+     * @param eventId
      * @param properties
      * @throws InvalidArgumentException
      */
-    public void track_overwrite(String account_id, String distinct_id, String event_name,String event_id, Map<String, Object> properties)
+    public void track_overwrite(String accountId, String distinctId, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        Map<String, Object> all_properties = new HashMap<String, Object>(superProperties);
+        Map<String, Object> allProperties = new HashMap<>(superProperties);
         if (properties != null) {
-            all_properties.putAll(properties);
+            allProperties.putAll(properties);
         }
-        __add(distinct_id, account_id, DataType.TRACK_OVERWRITE, event_name,event_id, all_properties);
+        add(distinctId, accountId, DataType.TRACK_OVERWRITE, eventName, eventId, allProperties);
     }
 
-    private void __add(String distinct_id, String account_id, DataType type, Map<String, Object> properties)
+    private void add(String distinctId, String accountId, DataType type, Map<String, Object> properties)
             throws InvalidArgumentException {
-        __add(distinct_id, account_id, type, null,null, properties);
+        add(distinctId, accountId, type, null, null, properties);
     }
 
-    private void __add(String distinct_id, String account_id, DataType type, String event_name, String event_id,Map<String, Object> properties)
+    private void add(String distinctId, String accountId, DataType type, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        if (TextUtils.isEmpty(account_id) && TextUtils.isEmpty(distinct_id)) {
-            throw new InvalidArgumentException("account_id or distinct_id must be provided.");
+        if (TextUtils.isEmpty(accountId) && TextUtils.isEmpty(distinctId)) {
+            throw new InvalidArgumentException("accountId or distinctId must be provided.");
         }
 
         Map<String, Object> finalProperties = (properties == null) ? new HashMap<String, Object>() : new HashMap<>(properties);
-        Map<String, Object> event = new HashMap<String, Object>();
+        Map<String, Object> event = new HashMap<>();
 
         //#uuid 只支持UUID标准格式xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
         if (finalProperties.containsKey("#uuid")) {
             event.put("#uuid", finalProperties.get("#uuid"));
             finalProperties.remove("#uuid");
-        }else if(enableUUID){
+        } else if (enableUUID) {
             event.put("#uuid", UUID.randomUUID().toString());
         }
         assertProperties(type, finalProperties);
-        if (!TextUtils.isEmpty(distinct_id)) {
-            event.put("#distinct_id", distinct_id);
+        if (!TextUtils.isEmpty(distinctId)) {
+            event.put("#distinct_id", distinctId);
         }
-        if(finalProperties.containsKey("#first_check_id")){
+        if (finalProperties.containsKey("#first_check_id")) {
             event.put("#first_check_id", finalProperties.get("#first_check_id"));
             finalProperties.remove("#first_check_id");
         }
 
-        if (!TextUtils.isEmpty(account_id)) {
-            event.put("#account_id", account_id);
+        if (!TextUtils.isEmpty(accountId)) {
+            event.put("#account_id", accountId);
         }
 
         if (finalProperties.containsKey("#time")) {
@@ -275,21 +275,26 @@ public class ThinkingDataAnalytics {
             finalProperties.remove("#ip");
         }
 
+        if (finalProperties.containsKey("#app_id")) {
+            event.put("#app_id", finalProperties.get("#app_id"));
+            finalProperties.remove("#app_id");
+        }
+
         event.put("#type", type.getType());
 
         if (type == DataType.TRACK || type == DataType.TRACK_OVERWRITE || type == DataType.TRACK_UPDATE) {
-            if (TextUtils.isEmpty(event_name)) {
+            if (TextUtils.isEmpty(eventName)) {
                 throw new InvalidArgumentException("The event name must be provided.");
             }
-            if( type == DataType.TRACK_OVERWRITE || type == DataType.TRACK_UPDATE){
-                if (TextUtils.isEmpty(event_id)) {
+            if (type == DataType.TRACK_OVERWRITE || type == DataType.TRACK_UPDATE) {
+                if (TextUtils.isEmpty(eventId)) {
                     throw new InvalidArgumentException("The event id must be provided.");
                 }
             }
-            if(!TextUtils.isEmpty(event_id)){
-              event.put("#event_id",event_id);
+            if (!TextUtils.isEmpty(eventId)) {
+                event.put("#event_id", eventId);
             }
-            event.put("#event_name", event_name);
+            event.put("#event_name", eventName);
             finalProperties.put("#lib", LIB_NAME);
             finalProperties.put("#lib_version", LIB_VERSION);
         }
@@ -355,6 +360,7 @@ public class ThinkingDataAnalytics {
         this.consumer.close();
     }
 
+
     /**
      * LoggerConsumer 批量实时写本地文件，文件以天为分隔，需要搭配 LogBus 进行上传. 建议使用.
      */
@@ -378,29 +384,32 @@ public class ThinkingDataAnalytics {
          * LoggerConsumer 的配置信息
          */
         public static class Config {
-            String log_directory;
+            String logDirectory;
             RotateMode rotateMode = RotateMode.DAILY;
             String lockFileName;
             String fileNamePrefix;
+            int interval = 0;
             int fileSize = 0;
             int bufferSize = 8192;
+            boolean autoFlush = false;
+
             /**
              * 创建指定日志存放路径的 LoggerConsumer 配置
              *
-             * @param log_directory 日志存放路径
+             * @param logDirectory 日志存放路径
              */
-            public Config(String log_directory) {
-                this.log_directory = log_directory;
+            public Config(String logDirectory) {
+                this(logDirectory, 0);
             }
 
             /**
              * 创建指定日志存放路径和日志大小的 LoggerConsumer 配置
              *
-             * @param log_directory 日志存放路径
-             * @param fileSize      日志大小, 单位 MB, 默认为无限大
+             * @param logDirectory 日志存放路径
+             * @param fileSize     日志大小, 单位 MB, 默认为无限大
              */
-            public Config(String log_directory, int fileSize) {
-                this.log_directory = log_directory;
+            public Config(String logDirectory, int fileSize) {
+                this.logDirectory = logDirectory;
                 this.fileSize = fileSize;
             }
 
@@ -443,14 +452,33 @@ public class ThinkingDataAnalytics {
             public void setFilenamePrefix(String fileNamePrefix) {
                 this.fileNamePrefix = fileNamePrefix;
             }
+
+            /**
+             * 设置自动保存
+             *
+             * @param autoFlush
+             */
+            public void setAutoFlush(boolean autoFlush) {
+                this.autoFlush = autoFlush;
+            }
+
+            /**
+             * 自动保存间隔
+             *
+             * @param interval
+             */
+            public void setInterval(int interval) {
+                this.interval = interval;
+            }
         }
 
         private final String fileName;
         private final String lockFileName;
         private final int bufferSize;
         private final int fileSize;
+        private Timer autoFlushTimer;
 
-        private final StringBuffer message_buffer = new StringBuffer();
+        private final StringBuffer messageBuffer = new StringBuffer();
         private final ThreadLocal<SimpleDateFormat> df;
 
         private LoggerFileWriter loggerWriter;
@@ -461,7 +489,17 @@ public class ThinkingDataAnalytics {
          * @param config LoggerConsumer.Config instance.
          */
         public LoggerConsumer(final Config config) {
-            String fileNamePrefix = config.fileNamePrefix == null ? config.log_directory +  File.separator  :  config.log_directory +  File.separator + config.fileNamePrefix + ".";
+            if (config.logDirectory == null || config.logDirectory.length() == 0) {
+                throw new RuntimeException("指定的目录路径不能为空！");
+            }
+            File dir = new File(config.logDirectory);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            if (!dir.isDirectory()) {
+                throw new RuntimeException("指定的路径必须是个目录：" + config.logDirectory);
+            }
+            String fileNamePrefix = config.fileNamePrefix == null ? config.logDirectory + File.separator : config.logDirectory + File.separator + config.fileNamePrefix + ".";
             this.fileName = fileNamePrefix + "log.";
             this.fileSize = config.fileSize;
             this.lockFileName = config.lockFileName;
@@ -474,6 +512,18 @@ public class ThinkingDataAnalytics {
                     return new SimpleDateFormat(dataFormat);
                 }
             };
+
+            if (config.autoFlush) {
+                if (config.interval <= 0) {
+                    config.interval = 3;
+                }
+                autoFlushTimer = new Timer();
+                autoFlushTimer.schedule(new TimerTask() {
+                    public void run() {
+                        flush();
+                    }
+                }, 1000, config.interval * 1000);
+            }
         }
 
         /**
@@ -489,7 +539,7 @@ public class ThinkingDataAnalytics {
          * 创建指定日志存放目录的 LoggerConsumer, 并指定单个日志文件大小.
          *
          * @param logDirectory 日志目录
-         * @param fileSize      单个日志文件大小限制，单位 MB
+         * @param fileSize     单个日志文件大小限制，单位 MB
          */
         public LoggerConsumer(final String logDirectory, int fileSize) {
             this(new Config(logDirectory, fileSize));
@@ -499,20 +549,20 @@ public class ThinkingDataAnalytics {
         @Override
         public synchronized void add(Map<String, Object> message) {
             try {
-                message_buffer.append(JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT));
-                message_buffer.append("\n");
+                messageBuffer.append(JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT));
+                messageBuffer.append("\n");
             } catch (JSONException e) {
                 throw new RuntimeException("Failed to add data", e);
             }
 
-            if (message_buffer.length() >= bufferSize) {
+            if (messageBuffer.length() >= bufferSize) {
                 this.flush();
             }
         }
 
         @Override
         public synchronized void flush() {
-            if (message_buffer.length() == 0) {
+            if (messageBuffer.length() == 0) {
                 return;
             }
 
@@ -530,8 +580,8 @@ public class ThinkingDataAnalytics {
                 }
             }
 
-            if (loggerWriter.write(message_buffer)) {
-                message_buffer.setLength(0);
+            if (loggerWriter.write(messageBuffer)) {
+                messageBuffer.setLength(0);
             }
         }
 
@@ -558,6 +608,9 @@ public class ThinkingDataAnalytics {
             if (loggerWriter != null) {
                 LoggerFileWriter.removeInstance(loggerWriter);
                 loggerWriter = null;
+            }
+            if (autoFlushTimer != null) {
+                autoFlushTimer.cancel();
             }
         }
 
@@ -642,13 +695,17 @@ public class ThinkingDataAnalytics {
     public static class BatchConsumer implements Consumer {
 
         private final int batchSize;
-        private final int interval;
+        private final int maxCacheSize;
+        private final boolean isThrowException;
+        private Timer autoFlushTimer;
 
-        private final static int MAX_CACHE_SIZE = 7000;
-        private Long lastFlushTime = System.currentTimeMillis();
+        private final static int MAX_BATCH_SIZE = 1000;
         private final Object messageLock = new Object();
-        private List<Map<String, Object>> message_channel;
-        private HttpService httpService;
+        private final Object cacheLock = new Object();
+        private List<Map<String, Object>> messageChannel;
+        private final LinkedList<List<Map<String, Object>>> cacheBuffer = new LinkedList<>();
+        private final HttpService httpService;
+
 
         /**
          * 创建指定接收端地址和 APP ID 的 BatchConsumer
@@ -657,18 +714,29 @@ public class ThinkingDataAnalytics {
          * @param appId     APP ID
          */
         public BatchConsumer(String serverUrl, String appId) throws URISyntaxException {
-            this(serverUrl, appId, 20, null, 3);
+            this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, true);
         }
 
         /**
+         * 创建指定接收端地址和 APP ID 的 BatchConsumer
          *
+         * @param serverUrl        接收端地址
+         * @param appId            APP ID
+         * @param isThrowException 出错时是否抛出异常
+         */
+        public BatchConsumer(String serverUrl, String appId, boolean isThrowException) throws URISyntaxException {
+            this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, isThrowException);
+        }
+
+        /**
          * @param serverUrl 接收端地址
          * @param appId     APP ID
          * @param config    BatchConsumer配置类
          * @throws URISyntaxException
          */
-        public BatchConsumer(String serverUrl, String appId,Config config) throws URISyntaxException {
-            this(serverUrl, appId, Math.min(config.batchSize,MAX_CACHE_SIZE), config.timeout, config.interval,config.compress);
+        public BatchConsumer(String serverUrl, String appId, Config config) throws URISyntaxException {
+            this(serverUrl, appId, config.batchSize, config.timeout, config.autoFlush, config.interval, config.compress,
+                    config.maxCacheSize, config.isThrowException);
         }
 
 
@@ -679,11 +747,13 @@ public class ThinkingDataAnalytics {
          * @param appId     APP ID
          * @param batchSize 缓存数目上线
          * @param timeout   超时时长，单位 ms
-         * @param interval  发送间隔，单位秒
+         * @param autoFlush 自动上传开关
+         * @param interval  自动上传间隔，单位秒
          */
-        public BatchConsumer(String serverUrl, String appId, int batchSize,Integer timeout, int interval) throws URISyntaxException {
-            this(serverUrl,appId,Math.min(batchSize,MAX_CACHE_SIZE),timeout,interval,"gzip");
+        public BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval) throws URISyntaxException {
+            this(serverUrl, appId, batchSize, timeout, autoFlush, interval, "gzip", 0, true);
         }
+
         /**
          * 创建指定接收端地址和 APP ID 的 BatchConsumer，并设定 batchSize, 网络请求 timeout, 发送频次
          *
@@ -693,112 +763,161 @@ public class ThinkingDataAnalytics {
          * @param timeout   超时时长，单位 ms
          * @param interval  发送间隔，单位秒
          */
-        public BatchConsumer(String serverUrl, String appId, int batchSize,Integer timeout, int interval,String compress) throws URISyntaxException {
-            this.message_channel = new ArrayList<>();
-            this.batchSize = batchSize;
-            this.interval = interval;
+        public BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval,
+                             String compress) throws URISyntaxException {
+            this(serverUrl, appId, batchSize, timeout, autoFlush, interval, compress, 0, true);
+        }
+
+        private BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval,
+                              String compress, int maxCacheSize, boolean isThrowException) throws URISyntaxException {
+            this.messageChannel = new ArrayList<>();
+            this.batchSize = batchSize < 0 ? 20 : Math.min(batchSize, MAX_BATCH_SIZE);
+            this.maxCacheSize = maxCacheSize <= 0 ? 50 : maxCacheSize;
+            this.isThrowException = isThrowException;
             URI uri = new URI(serverUrl);
-            URI url = new URI(uri.getScheme(),uri.getAuthority(),
+            URI url = new URI(uri.getScheme(), uri.getAuthority(),
                     "/sync_server", uri.getQuery(), uri.getFragment());
-            httpService = new HttpService(url, appId, timeout);
+            this.httpService = new HttpService(url, appId, timeout);
             this.httpService.compress = compress;
+            if (autoFlush) {
+                if (interval <= 0) {
+                    interval = 3;
+                }
+                autoFlushTimer = new Timer();
+                autoFlushTimer.schedule(new TimerTask() {
+                    public void run() {
+                        flushOnce();
+                    }
+                }, 1000, interval * 1000L);
+            }
         }
 
         /**
          * BatchConsumer 的 配置类
          */
         public static class Config {
-            private Integer batchSize = 20;
-            private Integer interval = 3;
-            private String compress="gzip";
-            private Integer timeout = null ;
+            private int batchSize = 20;
+            private int interval = 3;
+            private String compress = "gzip";
+            private int timeout = 30000;
+            private boolean autoFlush = false;
+            private int maxCacheSize = 50;
+            private boolean isThrowException = true;
 
             public Config() {
             }
 
             /**
-             *
              * @param batchSize BatchConsumer的flush条数，缓存数目
              */
-            public void setBatchSize(Integer batchSize) {
+            public void setBatchSize(int batchSize) {
                 this.batchSize = batchSize;
             }
 
             /**
-             *
-             * @param interval 发送间隔，单位秒
+             * @param interval 自动发送间隔，单位秒
              */
-
-            public void setInterval(Integer interval) {
+            public void setInterval(int interval) {
                 this.interval = interval;
             }
 
             /**
-             *
              * @param compress BatchConsumer的压缩方式
              */
             public void setCompress(String compress) {
                 this.compress = compress;
             }
 
-            public void setTimeout(int timeout){
+            public void setTimeout(int timeout) {
                 this.timeout = timeout;
+            }
+
+            public void setAutoFlush(boolean autoFlush) {
+                this.autoFlush = autoFlush;
+            }
+
+            public void setMaxCacheSize(int maxCacheSize) {
+                this.maxCacheSize = maxCacheSize;
+            }
+
+            public void setThrowException(boolean isThrowException) {
+                this.isThrowException = isThrowException;
             }
         }
 
         @Override
         public void add(Map<String, Object> message) {
             synchronized (messageLock) {
-                message_channel.add(message);
-                Long nowTime = System.currentTimeMillis();
-                if (message_channel.size() >= batchSize || (nowTime - lastFlushTime >= interval * 1000)) {
-                    flush();
+                messageChannel.add(message);
+            }
+            if (messageChannel.size() >= batchSize || cacheBuffer.size() > 0) {
+                flushOnce();
+            }
+        }
+
+        /**
+         * 将缓存的数据全部上传
+         */
+        @Override
+        public void flush() {
+            while (cacheBuffer.size() > 0 || messageChannel.size() > 0) {
+                try {
+                    flushOnce();
+                } catch (IllegalDataException ignore) {
                 }
             }
         }
 
-        @Override
-        public void flush() {
-            synchronized (messageLock) {
-                boolean deleteData = true;
-                try {
-                    List<Map<String, Object>> messageList;
-                    if (message_channel.size() > batchSize) {
-                        messageList = message_channel.subList(0, batchSize);
-                    } else if (message_channel.size() == 0) {
+        public void flushOnce() {
+            if (messageChannel.size() == 0 && cacheBuffer.size() == 0) {
+                return;
+            }
+
+            synchronized (cacheLock) {
+                synchronized (messageLock) {
+                    if (messageChannel.size() == 0 && cacheBuffer.size() == 0) {
                         return;
-                    } else {
-                        messageList = message_channel;
                     }
+                    if (messageChannel.size() >= batchSize || cacheBuffer.size() == 0) {
+                        cacheBuffer.add(messageChannel);
+                        messageChannel = new ArrayList<>();
+                    }
+                }
 
-                    String data = JSON.toJSONStringWithDateFormat(messageList, DEFAULT_DATE_FORMAT);
-                    httpService.send(data,messageList.size());
+                List<Map<String, Object>> buffer = cacheBuffer.getFirst();
 
-                } catch (JSONException e) {
-                    throw new RuntimeException("Failed to for json operations", e);
-                } catch (InvalidArgumentException e) {
-                    throw new RuntimeException("Invalid parameter", e);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } catch (HttpService.ServiceUnavailableException e) {
-                    deleteData = false;
+                try {
+                    String data = JSON.toJSONStringWithDateFormat(buffer, DEFAULT_DATE_FORMAT);
+                    httpService.send(data, buffer.size());
+                    cacheBuffer.removeFirst();
+                } catch (NeedRetryException e) {
+                    if (isThrowException) {
+                        throw e;
+                    }
+                } catch (IllegalDataException e) {
+                    cacheBuffer.removeFirst();
+                    if (isThrowException) {
+                        throw e;
+                    }
                 } finally {
-                    if (deleteData) {
-                        message_channel.subList(0,Math.min(message_channel.size(),batchSize)).clear();
-                    }else {
-                        if(message_channel.size() > MAX_CACHE_SIZE){
-                            message_channel.subList(0,message_channel.size()- MAX_CACHE_SIZE).clear();
-                        }
+                    if (cacheBuffer.size() > maxCacheSize) {
+                        cacheBuffer.removeFirst();
                     }
-                    lastFlushTime = System.currentTimeMillis();
                 }
             }
         }
 
         @Override
         public void close() {
-            while (message_channel.size() > 0) {
-                flush();
+            if (autoFlushTimer != null) {
+                try {
+                    autoFlushTimer.cancel();
+                } catch (Exception ignore) {
+                }
+            }
+            flush();
+            if (httpService != null) {
+                httpService.close();
             }
         }
 
@@ -831,7 +950,7 @@ public class ThinkingDataAnalytics {
             String data = JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT);
 
             try {
-                httpService.send(data,1);
+                httpService.send(data, 1);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -844,7 +963,9 @@ public class ThinkingDataAnalytics {
 
         @Override
         public void close() {
-
+            if (httpService != null) {
+                httpService.close();
+            }
         }
 
     }
@@ -887,61 +1008,67 @@ public class ThinkingDataAnalytics {
             this.appId = appId;
         }
 
-        public synchronized void send(final String data,int dataSize) throws ServiceUnavailableException, InvalidArgumentException, IOException {
+        private synchronized void send(final String data, int dataSize) {
             HttpPost httpPost = new HttpPost(serverUri);
             HttpEntity params = (consumeMode == ConsumeMode.BATCH) ? getBatchHttpEntity(data) : getDebugHttpEntity(data);
             httpPost.setEntity(params);
             httpPost.addHeader("appid", this.appId);
             httpPost.addHeader("TA-Integration-Type", "Java");
             httpPost.addHeader("TA-Integration-Version", LIB_VERSION);
-            httpPost.addHeader("TA-Integration-Count",String.valueOf(dataSize));
-            httpPost.addHeader("TA_Integration-Extra",compress);
+            httpPost.addHeader("TA-Integration-Count", String.valueOf(dataSize));
             httpPost.addHeader("compress", compress);
             if (this.connectTimeout != null) {
                 RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(connectTimeout + 5000).setConnectTimeout(connectTimeout).build();
                 httpPost.setConfig(requestConfig);
             }
-            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-                int statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode != 200) {
-                    throw new ServiceUnavailableException("Cannot post message to " + this.serverUri);
+            for (int i = 0; ; ) {
+                try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                    int statusCode = response.getStatusLine().getStatusCode();
+                    if (statusCode != 200) {
+                        throw new NeedRetryException("Cannot post message to " + this.serverUri);
+                    }
+                    String result = EntityUtils.toString(response.getEntity(), "UTF-8");
+                    JSONObject resultJson = JSONObject.parseObject(result);
+                    checkingRetCode(resultJson);
+                    return;
+                } catch (IOException | NeedRetryException e) {
+                    if (i++ == 2) {
+                        throw new NeedRetryException("Cannot post message to " + this.serverUri);
+                    }
+                } finally {
+                    httpPost.releaseConnection();
                 }
-                String result = EntityUtils.toString(response.getEntity(), "UTF-8");
-                JSONObject resultJson = JSONObject.parseObject(result);
-                checkingRetCode(resultJson);
-            } catch (IOException e) {
-                throw new ServiceUnavailableException("Cannot post message to " + this.serverUri);
-            } finally {
-                httpPost.releaseConnection();
             }
         }
 
-        UrlEncodedFormEntity getDebugHttpEntity(final String data) throws IOException {
-            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+        UrlEncodedFormEntity getDebugHttpEntity(final String data) {
+            List<NameValuePair> nameValuePairs = new ArrayList<>();
             nameValuePairs.add(new BasicNameValuePair("source", "server"));
             nameValuePairs.add(new BasicNameValuePair("appid", this.appId));
             nameValuePairs.add(new BasicNameValuePair("data", data));
             if (!this.writeData) {
                 nameValuePairs.add(new BasicNameValuePair("dryRun", String.valueOf(1)));
             }
-            return new UrlEncodedFormEntity(nameValuePairs, "UTF-8");
+            return new UrlEncodedFormEntity(nameValuePairs, StandardCharsets.UTF_8);
         }
 
-        HttpEntity getBatchHttpEntity(final String data) throws IOException, InvalidArgumentException {
-            byte[] dataCompressed = null;
-            byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
-            if ("gzip".equalsIgnoreCase(this.compress)) {
-                dataCompressed = gzipCompress(dataBytes);
-            } else if ("lzo".equalsIgnoreCase(this.compress)) {
-                dataCompressed = lzoCompress(dataBytes);
-            } else if ("lz4".equalsIgnoreCase(this.compress)) {
-                dataCompressed = lz4Compress(dataBytes);
-            } else if ("none".equalsIgnoreCase(this.compress)) {
-                dataCompressed = dataBytes;
-            }else {
-                throw new InvalidArgumentException("compress input error.");
+        HttpEntity getBatchHttpEntity(final String data) {
+            try {
+                byte[] dataCompressed;
+                byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
+                if ("lzo".equalsIgnoreCase(this.compress)) {
+                    dataCompressed = lzoCompress(dataBytes);
+                } else if ("lz4".equalsIgnoreCase(this.compress)) {
+                    dataCompressed = lz4Compress(dataBytes);
+                } else if ("none".equalsIgnoreCase(this.compress)) {
+                    dataCompressed = dataBytes;
+                } else {
+                    dataCompressed = gzipCompress(dataBytes);
+                }
+                return new ByteArrayEntity(dataCompressed);
+            } catch (IOException e) {
+                throw new NeedRetryException("压缩数据失败！", e);
             }
-            return new ByteArrayEntity(dataCompressed);
         }
 
         private static byte[] lzoCompress(byte[] srcBytes) throws IOException {
@@ -982,36 +1109,37 @@ public class ThinkingDataAnalytics {
 
         }
 
-        private void checkingRetCode(JSONObject resultJson) throws InvalidArgumentException {
+        private void checkingRetCode(JSONObject resultJson) {
             if (this.consumeMode == ConsumeMode.DEBUG) {
                 if (resultJson.getInteger("errorLevel") != 0) {
-                    throw new InvalidArgumentException(resultJson.toJSONString());
+                    throw new IllegalDataException(resultJson.toJSONString());
                 }
             } else if (this.consumeMode == ConsumeMode.BATCH) {
                 int retCode = resultJson.getInteger("code");
                 if (retCode != 0) {
                     if (retCode == -1) {
-                        throw new InvalidArgumentException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "invalid data format");
+                        throw new IllegalDataException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "invalid data format");
                     } else if (retCode == -2) {
-                        throw new InvalidArgumentException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "APP ID doesn't exist");
+                        throw new IllegalDataException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "APP ID doesn't exist");
                     } else if (retCode == -3) {
-                        throw new InvalidArgumentException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "invalid ip transmission");
+                        throw new IllegalDataException(resultJson.containsKey("msg") ? resultJson.getString("msg") : "invalid ip transmission");
                     } else {
-                        throw new RuntimeException("Unexpected response return code: " + retCode);
+                        throw new IllegalDataException("Unexpected response return code: " + retCode);
                     }
                 }
             }
         }
 
-        class ServiceUnavailableException extends Exception {
-            ServiceUnavailableException(String message) {
-                super(message);
-            }
-        }
-
         @Override
         public void close() {
-
+            if (httpClient != null) {
+                try {
+                    httpClient.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                httpClient = null;
+            }
         }
 
     }

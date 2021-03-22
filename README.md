@@ -12,7 +12,7 @@
     <dependency>
         <groupId>cn.thinkingdata</groupId>
         <artifactId>thinkingdatasdk</artifactId>
-        <version>1.2.0</version>
+        <version>1.8.0</version>
     </dependency>
 </dependencies>
 ```
@@ -31,7 +31,7 @@ ThinkingDataAnalytics ta = new ThinkingDataAnalytics(new ThinkingDataAnalytics.L
 `LOG_DIRECTORY` 为写入本地的文件夹地址，您只需将 LogBus 的监听文件夹地址设置为此处的地址，即可使用 LogBus 进行数据的监听上传。
 
 
-**(2) BatchConsumer:** 批量实时地向TA服务器传输数据，不需要搭配传输工具，**<font color="red">不建议在正式环境中使用</font>**
+**(2) BatchConsumer:** 批量实时地向TA服务器传输数据，不需要搭配传输工具，因网络问题发送失败时会重试3次，仍然失败将会把数据存入缓存区，可设置缓存区大小，默认50，即缓存区保留的数据总数最大为50*20（20为每次上传的batch值，可设置）。
 
 ```java
 // 使用BatchConsumer

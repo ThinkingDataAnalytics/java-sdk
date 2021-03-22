@@ -13,8 +13,18 @@ public class ExampleSDK {
         /**
          * 1.该方式在1.3.1版本后不默认以大小切分文件，只按天切分文件
          */
-        String log_dirctory = ".";  //设定logbus监控的目录
-        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(log_dirctory));
+//        String log_dirctory = ".";  //设定logbus监控的目录
+//        ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory, 100);
+//        config.setAutoFlush(true);
+//        config.setInterval(5);
+//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
+
+        ThinkingDataAnalytics.BatchConsumer.Config config = new ThinkingDataAnalytics.BatchConsumer.Config();
+        config.setAutoFlush(true);
+        config.setInterval(5);
+        config.setThrowException(true);
+        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("http://localhost:8091", "APPID", config));
+
         /**
          * 2.该方式可以设置文件大小切分，以天切分为前提,这里设置的是5GB
          */
@@ -64,7 +74,7 @@ public class ExampleSDK {
         // 对于预置字段，已经确定好了字段类型和字段的显示名
 
         //track 事件
-        properties.put("#time",new Date());                // 这条event发生的时间，如果不设置的话，则默认是当前时间
+        properties.put("#time", new Date());                // 这条event发生的时间，如果不设置的话，则默认是当前时间
         properties.put("#ip", "123.123.123.123");           // 请求中能够拿到用户的IP，则把这个传递给tga，tga会自动根据这个解析省份、城市
         properties.put("bool", true);
         properties.put("#uuid", UUID.randomUUID());          //可不填，只支持UUID标准格式xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
@@ -79,7 +89,7 @@ public class ExampleSDK {
             tga.track(account_id, distinct_id, "test", properties); // 记录访问首页这个event
             tga.flush();
         } catch (Exception e) {
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
 
         //user_setOnce 只设置一次用户属性
@@ -93,7 +103,7 @@ public class ExampleSDK {
             tga.user_setOnce(account_id, distinct_id, properties);
             tga.flush();
         } catch (Exception e) {
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
 
 
@@ -113,7 +123,7 @@ public class ExampleSDK {
             tga.user_set(account_id, distinct_id, properties);
             tga.flush();
         } catch (Exception e) {
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
 
         //user_unset  去重置单个用户属性
@@ -127,7 +137,7 @@ public class ExampleSDK {
             tga.user_unset(account_id, distinct_id, keys);
         } catch (Exception e) {
             //do
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
 
         //level增加了3级(降了用-3)
@@ -139,7 +149,7 @@ public class ExampleSDK {
             tga.user_add(account_id, distinct_id, properties);
         } catch (Exception e) {
             //do
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
 
         //user_append 为list 类型追加属性
@@ -151,37 +161,52 @@ public class ExampleSDK {
         List<Object> appendList2 = new ArrayList<>();
         appendList2.add("2");
         appendList2.add("true");
-        properties.put("arrkey2",appendList2);
+        properties.put("arrkey2", appendList2);
         try {
             tga.user_append(account_id, distinct_id, properties);
         } catch (Exception e) {
             //do
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
         //track_update
         properties.clear();
-        properties.put("price",100);
-        properties.put("status",3);
-         // 上报后事件属性 status 为 3, price 为 100
-        tga.track_update(account_id, distinct_id,"UPDATABLE_EVENT","test_event_id",properties);
-
-       // 上报后同样test_event_id + UPDATABLE_EVENT 的事件属性 status 被更新为 5, price 不变
+        properties.put("price", 100);
+        properties.put("status", 3);
+        // 上报后事件属性 status 为 3, price 为 100
+        try {
+            tga.track_update(account_id, distinct_id, "UPDATABLE_EVENT", "test_event_id", properties);
+        } catch (Exception e) {
+            System.out.println("except:" + e);
+        }
+        // 上报后同样test_event_id + UPDATABLE_EVENT 的事件属性 status 被更新为 5, price 不变
         Map<String, Object> protertiesNew = new HashMap<>();
-        protertiesNew.put("status",5);
-        tga.track_update(account_id, distinct_id, "UPDATABLE_EVENT", "test_event_id", protertiesNew);
+        protertiesNew.put("status", 5);
+        try {
+            tga.track_update(account_id, distinct_id, "UPDATABLE_EVENT", "test_event_id", protertiesNew);
+        } catch (Exception e) {
+            System.out.println("except:" + e);
+        }
         //track_overwrite
         // 示例： 上报可被重写的事件，假设事件名为 OVERWRITE_EVENT
         properties.clear();
-        properties.put("price",100);
-        properties.put("status",3);
+        properties.put("price", 100);
+        properties.put("status", 3);
         // 上报后事件属性 status 为 3, price 为 100
-        tga.track_overwrite(account_id, distinct_id, "OVERWRITE_EVENT","test_event_id", properties);
+        try {
+            tga.track_overwrite(account_id, distinct_id, "OVERWRITE_EVENT", "test_event_id", properties);
+        } catch (Exception e) {
+            System.out.println("except:" + e);
+        }
+
         protertiesNew.clear();
-        protertiesNew.put("status",5);
+        protertiesNew.put("status", 5);
 
         //上报后事件属性 status 被更新为 5, price 属性被删除
-        tga.track_overwrite(account_id, distinct_id, "OVERWRITE_EVENT", "test_event_id", protertiesNew);
-
+        try {
+            tga.track_overwrite(account_id, distinct_id, "OVERWRITE_EVENT", "test_event_id", protertiesNew);
+        } catch (Exception e) {
+            System.out.println("except:" + e);
+        }
 
         //*****************************
         //公共属性
@@ -200,7 +225,7 @@ public class ExampleSDK {
             tga.track(account_id, distinct_id, "Product_Purchase", properties);
         } catch (Exception e) {
             //do
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
         properties.clear();
         properties.put("#time", new Date());
@@ -225,29 +250,27 @@ public class ExampleSDK {
             tga.track(account_id, distinct_id, "CancelOrder", properties);
         } catch (Exception e) {
             //do
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
-
 
         //清除公共属性
         tga.clearSuperProperties();
-
 
         //删除用户
         try {
             //tga.user_del(account_id,distinct_id);
         } catch (Exception e) {
             //do
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
-
 
         //关闭TA
         try {
+            Thread.sleep(30000);
             tga.close();
         } catch (Exception e) {
             //do
-            System.out.println("except:"+e);
+            System.out.println("except:" + e);
         }
 
     }
