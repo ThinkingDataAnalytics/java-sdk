@@ -45,7 +45,7 @@ public class ThinkingDataAnalytics {
     private final Map<String, Object> superProperties;
     private final boolean enableUUID;
 
-    private final static String LIB_VERSION = "1.8.0";
+    private final static String LIB_VERSION = "1.8.1";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -196,12 +196,12 @@ public class ThinkingDataAnalytics {
     }
 
     /**
-     * @param accountId
-     * @param distinctId
-     * @param eventName
-     * @param eventId
-     * @param properties
-     * @throws InvalidArgumentException
+     * @param accountId  账号 ID
+     * @param distinctId 访客ID
+     * @param eventName  事件名称
+     * @param eventId    事件ID
+     * @param properties 事件属性
+     * @throws InvalidArgumentException 数据错误
      */
     public void track_update(String accountId, String distinctId, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
@@ -213,12 +213,12 @@ public class ThinkingDataAnalytics {
     }
 
     /**
-     * @param accountId
-     * @param distinctId
-     * @param eventName
-     * @param eventId
-     * @param properties
-     * @throws InvalidArgumentException
+     * @param accountId  账号 ID
+     * @param distinctId 访客ID
+     * @param eventName  事件ID
+     * @param eventId    事件ID
+     * @param properties 事件属性
+     * @throws InvalidArgumentException 数据错误
      */
     public void track_overwrite(String accountId, String distinctId, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
@@ -254,13 +254,14 @@ public class ThinkingDataAnalytics {
         if (!TextUtils.isEmpty(distinctId)) {
             event.put("#distinct_id", distinctId);
         }
-        if (finalProperties.containsKey("#first_check_id")) {
-            event.put("#first_check_id", finalProperties.get("#first_check_id"));
-            finalProperties.remove("#first_check_id");
-        }
 
         if (!TextUtils.isEmpty(accountId)) {
             event.put("#account_id", accountId);
+        }
+
+        if (finalProperties.containsKey("#app_id")) {
+            event.put("#app_id", finalProperties.get("#app_id"));
+            finalProperties.remove("#app_id");
         }
 
         if (finalProperties.containsKey("#time")) {
@@ -270,14 +271,25 @@ public class ThinkingDataAnalytics {
             event.put("#time", new Date());
         }
 
+        //预置属性提取
         if (finalProperties.containsKey("#ip")) {
             event.put("#ip", finalProperties.get("#ip"));
             finalProperties.remove("#ip");
         }
 
-        if (finalProperties.containsKey("#app_id")) {
-            event.put("#app_id", finalProperties.get("#app_id"));
-            finalProperties.remove("#app_id");
+        if (finalProperties.containsKey("#first_check_id")) {
+            event.put("#first_check_id", finalProperties.get("#first_check_id"));
+            finalProperties.remove("#first_check_id");
+        }
+
+        if (finalProperties.containsKey("#transaction_property")) {
+            event.put("#transaction_property", finalProperties.get("#transaction_property"));
+            finalProperties.remove("#transaction_property");
+        }
+
+        if (finalProperties.containsKey("#import_tool_id")) {
+            event.put("#import_tool_id", finalProperties.get("#import_tool_id"));
+            finalProperties.remove("#import_tool_id");
         }
 
         event.put("#type", type.getType());
@@ -447,7 +459,7 @@ public class ThinkingDataAnalytics {
             /**
              * 设置用户名前缀
              *
-             * @param fileNamePrefix
+             * @param fileNamePrefix 用户名前缀
              */
             public void setFilenamePrefix(String fileNamePrefix) {
                 this.fileNamePrefix = fileNamePrefix;
@@ -456,7 +468,7 @@ public class ThinkingDataAnalytics {
             /**
              * 设置自动保存
              *
-             * @param autoFlush
+             * @param autoFlush 是否自动保存
              */
             public void setAutoFlush(boolean autoFlush) {
                 this.autoFlush = autoFlush;
@@ -465,7 +477,7 @@ public class ThinkingDataAnalytics {
             /**
              * 自动保存间隔
              *
-             * @param interval
+             * @param interval 自动保存任务间隔
              */
             public void setInterval(int interval) {
                 this.interval = interval;
@@ -712,6 +724,7 @@ public class ThinkingDataAnalytics {
          *
          * @param serverUrl 接收端地址
          * @param appId     APP ID
+         * @throws URISyntaxException 上传地址异常
          */
         public BatchConsumer(String serverUrl, String appId) throws URISyntaxException {
             this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, true);
@@ -723,6 +736,7 @@ public class ThinkingDataAnalytics {
          * @param serverUrl        接收端地址
          * @param appId            APP ID
          * @param isThrowException 出错时是否抛出异常
+         * @throws URISyntaxException 上传地址异常
          */
         public BatchConsumer(String serverUrl, String appId, boolean isThrowException) throws URISyntaxException {
             this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, isThrowException);
@@ -732,7 +746,7 @@ public class ThinkingDataAnalytics {
          * @param serverUrl 接收端地址
          * @param appId     APP ID
          * @param config    BatchConsumer配置类
-         * @throws URISyntaxException
+         * @throws URISyntaxException 上传地址异常
          */
         public BatchConsumer(String serverUrl, String appId, Config config) throws URISyntaxException {
             this(serverUrl, appId, config.batchSize, config.timeout, config.autoFlush, config.interval, config.compress,
@@ -749,6 +763,7 @@ public class ThinkingDataAnalytics {
          * @param timeout   超时时长，单位 ms
          * @param autoFlush 自动上传开关
          * @param interval  自动上传间隔，单位秒
+         * @throws URISyntaxException 上传地址异常
          */
         public BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval) throws URISyntaxException {
             this(serverUrl, appId, batchSize, timeout, autoFlush, interval, "gzip", 0, true);
@@ -761,7 +776,10 @@ public class ThinkingDataAnalytics {
          * @param appId     APP ID
          * @param batchSize 缓存数目上线
          * @param timeout   超时时长，单位 ms
+         * @param autoFlush 自动上传开关
          * @param interval  发送间隔，单位秒
+         * @param compress  压缩方式
+         * @throws URISyntaxException 上传地址异常
          */
         public BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval,
                              String compress) throws URISyntaxException {
@@ -931,6 +949,7 @@ public class ThinkingDataAnalytics {
          *
          * @param serverUrl 接收端地址
          * @param appId     APP ID
+         * @throws URISyntaxException 上传地址异常
          */
         public DebugConsumer(String serverUrl, String appId) throws URISyntaxException {
             this(serverUrl, appId, true);
@@ -1033,7 +1052,7 @@ public class ThinkingDataAnalytics {
                     return;
                 } catch (IOException | NeedRetryException e) {
                     if (i++ == 2) {
-                        throw new NeedRetryException("Cannot post message to " + this.serverUri);
+                        throw new NeedRetryException("Cannot post message to " + this.serverUri, e);
                     }
                 } finally {
                     httpPost.releaseConnection();
