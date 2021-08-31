@@ -8,20 +8,22 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 
 
 public class HttpRequestUtil {
-    private static CloseableHttpClient httpClient = null;
+
+    private static final PoolingHttpClientConnectionManager cm;
+    private static final RequestConfig globalConfig;
+
     static {
-        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
+        cm = new PoolingHttpClientConnectionManager();
         cm.setDefaultMaxPerRoute(80);
         cm.setMaxTotal(100);
-        RequestConfig globalConfig = RequestConfig.custom()
+        globalConfig = RequestConfig.custom()
                 .setCookieSpec(CookieSpecs.IGNORE_COOKIES)
                 .setConnectTimeout(30000)
                 .setSocketTimeout(30000).build();
-        httpClient = HttpClients.custom().setConnectionManager(cm).setDefaultRequestConfig(globalConfig).build();
     }
 
-    public static CloseableHttpClient getHttpClient(){
-        return httpClient;
+    public static CloseableHttpClient getHttpClient() {
+        return HttpClients.custom().setConnectionManager(cm).setDefaultRequestConfig(globalConfig).build();
     }
 
 }
