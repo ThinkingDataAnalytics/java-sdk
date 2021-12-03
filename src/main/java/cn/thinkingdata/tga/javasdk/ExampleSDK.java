@@ -266,7 +266,7 @@ public class ExampleSDK {
 
         //关闭TA
         try {
-            Thread.sleep(30000);
+            Thread.sleep(3000);
             tga.close();
         } catch (Exception e) {
             //do

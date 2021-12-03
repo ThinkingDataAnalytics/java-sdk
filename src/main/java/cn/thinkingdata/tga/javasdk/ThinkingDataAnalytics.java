@@ -333,8 +333,6 @@ public class ThinkingDataAnalytics {
                     if (!(value instanceof Number) && !(property.getKey().startsWith("#"))) {
                         throw new InvalidArgumentException("Only Number is allowed for user_add. Invalid property: " + property.getKey());
                     }
-                } else if (!(value instanceof Number) && !(value instanceof Date) && !(value instanceof String) && !(value instanceof Boolean) && !(value instanceof List<?>)) {
-                    throw new InvalidArgumentException("The supported data type including: Number, String, Date, Boolean,List. Invalid property: " + property.getKey());
                 }
             } else {
                 throw new InvalidArgumentException("Invalid key format: " + property.getKey());
@@ -534,7 +532,7 @@ public class ThinkingDataAnalytics {
                     public void run() {
                         flush();
                     }
-                }, 1000, config.interval * 1000);
+                }, 1000, config.interval * 1000L);
             }
         }
 
@@ -1044,7 +1042,7 @@ public class ThinkingDataAnalytics {
                 try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
                     int statusCode = response.getStatusLine().getStatusCode();
                     if (statusCode != 200) {
-                        throw new NeedRetryException("Cannot post message to " + this.serverUri);
+                        throw new NeedRetryException("Cannot post message to " + this.serverUri + ", status code:" + statusCode);
                     }
                     String result = EntityUtils.toString(response.getEntity(), "UTF-8");
                     JSONObject resultJson = JSONObject.parseObject(result);
