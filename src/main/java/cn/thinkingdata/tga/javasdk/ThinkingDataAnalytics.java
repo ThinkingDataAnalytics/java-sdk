@@ -1149,14 +1149,7 @@ public class ThinkingDataAnalytics {
 
         @Override
         public void close() {
-            if (httpClient != null) {
-                try {
-                    httpClient.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                httpClient = null;
-            }
+            httpClient = null;
         }
 
     }

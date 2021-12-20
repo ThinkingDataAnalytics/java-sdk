@@ -23,7 +23,11 @@ public class HttpRequestUtil {
     }
 
     public static CloseableHttpClient getHttpClient() {
-        return HttpClients.custom().setConnectionManager(cm).setDefaultRequestConfig(globalConfig).build();
+        return HttpClients.custom()
+                .setConnectionManager(cm)
+                .setDefaultRequestConfig(globalConfig)
+                .setConnectionManagerShared(true)
+                .build();
     }
 
 }
