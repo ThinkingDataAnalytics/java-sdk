@@ -36,20 +36,25 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 public class ThinkingDataAnalytics {
 
     private final Consumer consumer;
-    private final Map<String, Object> superProperties;
+    private final Map<String, Object> superProperties; // 公共属性
     private final boolean enableUUID;
 
-    private final static String LIB_VERSION = "1.8.1";
+    private final static String LIB_VERSION = "2.0.0";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
-    private final static Pattern KEY_PATTERN = Pattern.compile("^(#[a-z][a-z0-9_]{0,49})|([a-z][a-z0-9_]{0,50})$", Pattern.CASE_INSENSITIVE);
+    private final static Pattern KEY_PATTERN = Pattern.compile("^(#[a-z][a-z0-9_]{0,49})|([a-z][a-z0-9_]{0,50})$", Pattern.CASE_INSENSITIVE);  // 以#号或者字母开头，由字母和数字组成的50个字符
+
+    // 动态公共属性回调
+    private Supplier<Map<String, Object>> dynamicSuperProperties = null;
 
     /**
      * 构造函数.
@@ -68,6 +73,8 @@ public class ThinkingDataAnalytics {
         this.superProperties = new ConcurrentHashMap<>();
     }
 
+
+
     private enum DataType {
         /**
          * 上报数据接口名
@@ -79,6 +86,7 @@ public class ThinkingDataAnalytics {
         USER_DEL("user_del"),
         USER_UNSET("user_unset"),
         USER_APPEND("user_append"),
+        USER_UNIQ_APPEND("user_uniqAppend"),
         TRACK_UPDATE("track_update"),
         TRACK_OVERWRITE("track_overwrite");
 
@@ -178,6 +186,19 @@ public class ThinkingDataAnalytics {
     }
 
     /**
+     * 用户的数组类型的属性去重追加
+     *
+     * @param accountId  账号 ID
+     * @param distinctId 访客 ID
+     * @param properties 用户属性
+     * @throws InvalidArgumentException 数据错误
+     */
+    public void user_uniqAppend(String accountId, String distinctId, Map<String, Object> properties)
+            throws InvalidArgumentException {
+        add(distinctId, accountId, DataType.USER_UNIQ_APPEND, properties);
+    }
+
+    /**
      * 上报事件
      *
      * @param accountId  账号 ID
@@ -188,12 +209,31 @@ public class ThinkingDataAnalytics {
      */
     public void track(String accountId, String distinctId, String eventName, Map<String, Object> properties)
             throws InvalidArgumentException {
-        Map<String, Object> allProperties = new HashMap<>(superProperties);
+        Map<String, Object> allProperties = dealWithSuperProperties();
         if (properties != null) {
             allProperties.putAll(properties);
         }
         add(distinctId, accountId, DataType.TRACK, eventName, null, allProperties);
     }
+
+    /**
+     * 首次事件
+     * @param accountId     账号ID
+     * @param distinctId    访客ID
+     * @param eventName     事件名称
+     * @param properties    事件属性
+     *                      (必须要在properties中设置#first_check_id字段，该字段是校验首次事件的标识ID)
+     * @throws InvalidArgumentException   数据错误
+     */
+    public void track_first(String accountId, String distinctId, String eventName, Map<String, Object> properties)
+            throws InvalidArgumentException {
+        if (properties.containsKey("#first_check_id")) {
+            track(accountId, distinctId, eventName, properties);
+        }else  {
+            throw new InvalidArgumentException("#first_check_id key must set");
+        }
+    }
+
 
     /**
      * @param accountId  账号 ID
@@ -205,7 +245,7 @@ public class ThinkingDataAnalytics {
      */
     public void track_update(String accountId, String distinctId, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        Map<String, Object> allProperties = new HashMap<>(superProperties);
+        Map<String, Object> allProperties = dealWithSuperProperties();
         if (properties != null) {
             allProperties.putAll(properties);
         }
@@ -222,11 +262,22 @@ public class ThinkingDataAnalytics {
      */
     public void track_overwrite(String accountId, String distinctId, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        Map<String, Object> allProperties = new HashMap<>(superProperties);
+        Map<String, Object> allProperties = dealWithSuperProperties();
         if (properties != null) {
             allProperties.putAll(properties);
         }
         add(distinctId, accountId, DataType.TRACK_OVERWRITE, eventName, eventId, allProperties);
+    }
+
+    private Map<String, Object> dealWithSuperProperties() {
+        Map<String, Object> allSuperProperties = new HashMap<>(superProperties);
+        if (dynamicSuperProperties != null) {
+            Map<String, Object> dynamicProperties = dynamicSuperProperties.get();
+            if (!dynamicProperties.isEmpty()) {
+                allSuperProperties.putAll(dynamicProperties);
+            }
+        }
+        return allSuperProperties;
     }
 
     private void add(String distinctId, String accountId, DataType type, Map<String, Object> properties)
@@ -357,6 +408,16 @@ public class ThinkingDataAnalytics {
     }
 
     /**
+     * 设置动态公共属性，即此处设置的公共属性会在上报时获取值
+     * 建议此回调方法中不要加入大量计算操作代码
+     * @param properties 动态公共属性
+     */
+    public void setDyNamicSuperProperties(Supplier<Map<String, Object>> properties) {
+        dynamicSuperProperties = properties;
+    }
+
+
+    /**
      * 立即上报数据到接收端
      */
     public void flush() {
@@ -394,14 +455,14 @@ public class ThinkingDataAnalytics {
          * LoggerConsumer 的配置信息
          */
         public static class Config {
-            String logDirectory;
-            RotateMode rotateMode = RotateMode.DAILY;
-            String lockFileName;
-            String fileNamePrefix;
-            int interval = 0;
-            int fileSize = 0;
-            int bufferSize = 8192;
-            boolean autoFlush = false;
+            String logDirectory;                            // 日志存放路径
+            RotateMode rotateMode = RotateMode.DAILY;       // 日志切分模式，默认以天为单位
+            String lockFileName;                            //
+            String fileNamePrefix;                          // 日志文件名前缀
+            int interval = 0;                               // 日志上传间隔
+            int fileSize = 0;                               // 单个日志文件的最大大小
+            int bufferSize = 8192;                          // 缓冲区容量
+            boolean autoFlush = false;                      // 是否开启定时器
 
             /**
              * 创建指定日志存放路径的 LoggerConsumer 配置
@@ -555,7 +616,6 @@ public class ThinkingDataAnalytics {
             this(new Config(logDirectory, fileSize));
         }
 
-
         @Override
         public synchronized void add(Map<String, Object> message) {
             try {
@@ -702,20 +762,21 @@ public class ThinkingDataAnalytics {
         }
     }
 
+
+
     public static class BatchConsumer implements Consumer {
 
-        private final int batchSize;
+        private final int batchSize;                         // flush到TA的数据条数
         private final int maxCacheSize;
         private final boolean isThrowException;
         private Timer autoFlushTimer;
 
-        private final static int MAX_BATCH_SIZE = 1000;
+        private final static int MAX_BATCH_SIZE = 1000;      // flush到TA的数据条数上限
         private final Object messageLock = new Object();
         private final Object cacheLock = new Object();
         private List<Map<String, Object>> messageChannel;
         private final LinkedList<List<Map<String, Object>>> cacheBuffer = new LinkedList<>();
         private final HttpService httpService;
-
 
         /**
          * 创建指定接收端地址和 APP ID 的 BatchConsumer
@@ -784,6 +845,19 @@ public class ThinkingDataAnalytics {
             this(serverUrl, appId, batchSize, timeout, autoFlush, interval, compress, 0, true);
         }
 
+        /**
+         *
+         * @param serverUrl             接收端地址
+         * @param appId                 APP ID
+         * @param batchSize             flush缓存容量
+         * @param timeout               超时时长，单位ms
+         * @param autoFlush             是否开启定时器
+         * @param interval              定时器的间隔，单位s
+         * @param compress              压缩方式
+         * @param maxCacheSize          最大几个缓存容量单位
+         * @param isThrowException      上传地址异常
+         * @throws URISyntaxException
+         */
         private BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval,
                               String compress, int maxCacheSize, boolean isThrowException) throws URISyntaxException {
             this.messageChannel = new ArrayList<>();
@@ -795,6 +869,7 @@ public class ThinkingDataAnalytics {
                     "/sync_server", uri.getQuery(), uri.getFragment());
             this.httpService = new HttpService(url, appId, timeout);
             this.httpService.compress = compress;
+
             if (autoFlush) {
                 if (interval <= 0) {
                     interval = 3;
@@ -884,6 +959,8 @@ public class ThinkingDataAnalytics {
             }
         }
 
+
+
         public void flushOnce() {
             if (messageChannel.size() == 0 && cacheBuffer.size() == 0) {
                 return;
@@ -904,7 +981,7 @@ public class ThinkingDataAnalytics {
 
                 try {
                     String data = JSON.toJSONStringWithDateFormat(buffer, DEFAULT_DATE_FORMAT);
-                    httpService.send(data, buffer.size());
+                    httpSending(data, buffer.size());
                     cacheBuffer.removeFirst();
                 } catch (NeedRetryException e) {
                     if (isThrowException) {
@@ -923,6 +1000,10 @@ public class ThinkingDataAnalytics {
             }
         }
 
+        public void httpSending(final String data, final int dataSize) {
+            httpService.send(data, dataSize);
+        }
+
         @Override
         public void close() {
             if (autoFlushTimer != null) {
@@ -936,7 +1017,62 @@ public class ThinkingDataAnalytics {
                 httpService.close();
             }
         }
+    }
 
+    public static  class AsyncBatchConsumer extends BatchConsumer {
+
+        // 创建线程池
+        public static ExecutorService pool = null;
+
+        public AsyncBatchConsumer(String serverUrl, String appId) throws URISyntaxException {
+            super(serverUrl, appId);
+            this.pool = Executors.newFixedThreadPool(5);
+
+        }
+
+        public AsyncBatchConsumer(String serverUrl, String appId, boolean isThrowException) throws URISyntaxException {
+            super(serverUrl, appId, isThrowException);
+            this.pool = Executors.newFixedThreadPool(5);
+        }
+
+        public AsyncBatchConsumer(String serverUrl, String appId, Config config) throws URISyntaxException {
+            super(serverUrl, appId, config);
+            this.pool = Executors.newFixedThreadPool(5);
+        }
+
+        public AsyncBatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval) throws URISyntaxException {
+            super(serverUrl, appId, batchSize, timeout, autoFlush, interval);
+            this.pool = Executors.newFixedThreadPool(5);
+        }
+
+        public AsyncBatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval, String compress) throws URISyntaxException {
+            super(serverUrl, appId, batchSize, timeout, autoFlush, interval, compress);
+            this.pool = Executors.newFixedThreadPool(5);
+        }
+
+        @Override
+        public void httpSending(final String data, final int dataSize) {
+            pool.execute( new Runnable() {
+                        @Override
+                        public void run() {
+                            callSuperHttpSending(data, dataSize);
+                        }
+                    }
+            );
+        }
+
+        void callSuperHttpSending(final String data, final int dataSize) {
+            super.httpSending(data, dataSize);
+        }
+
+        @Override
+        public void close() {
+            super.close();
+            if (null != pool) {
+                pool.shutdown();
+                pool = null;
+            }
+        }
     }
 
     public static class DebugConsumer implements Consumer {

@@ -19,7 +19,7 @@
 
 2. 初始化 SDK
 
-您可以通过 3 种方式获得 SDK 实例:
+您可以通过 4 种方式获得 SDK 实例:
 
 **(1) LoggerConsumer:** 批量实时写本地文件，文件以天/小时为分隔，需要搭配 LogBus 进行上传
 
@@ -48,7 +48,24 @@ http://receiver.ta.thinkingdata.cn/logagent
 
 http://<font color="red">数据采集地址</font>/logagent
 
-**(3) DebugConsumer:** 逐条向 TA 服务器传输数据，在数据校验出错时会抛出异常. **<font color="red">不要在正式环境中使用</font>**
+**(3) AsyncBatchConsumer:** 批量实时地向 TA 服务器传输数据（异步非阻塞），不需要搭配传输工具，网络原因导致失败时会重试3次，在网络中断的情况下，有数据丢失的风险，请谨慎使用。
+
+```java
+// 使用AsyncBatchConsumer
+ThinkingDataAnalytics ta = new ThinkingDataAnalytics(new ThinkingDataAnalytics.AsyncBatchConsumer(SERVER_URL, APP_ID));
+```
+
+`SERVER_URL` 为传输数据的 url，`APP_ID` 为您的项目的 APP ID
+
+如果您使用的是云服务，请输入以下 URL:
+
+http://receiver.ta.thinkingdata.cn/logagent
+
+如果您使用的是私有化部署的版本，请输入以下 URL:
+
+http://<font color="red">数据采集地址</font>/logagent
+
+**(4) DebugConsumer:** 逐条向 TA 服务器传输数据，在数据校验出错时会抛出异常. **<font color="red">不要在正式环境中使用</font>**
 ```java
 ThinkingDataAnalytics ta = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer(SERVER_URL, APP_ID));
 ```

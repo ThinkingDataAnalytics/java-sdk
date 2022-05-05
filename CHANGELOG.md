@@ -1,3 +1,9 @@
+**2.0.0** (2021/12/20)  
+- 支持动态公共属性设置 dynamicSuperProperties  
+- 支持去重用户属性追加 user_unique_append  
+- 支持数据批量异步上报 AsyncBatchConsumer  
+- 支持首次事件上报     track_first
+
 **1.9.1** (2021/12/20)
 - 修复连接池的连接关闭的问题
 

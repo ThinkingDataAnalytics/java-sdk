@@ -1,29 +1,26 @@
 package cn.thinkingdata.tga.javasdk;
 
+import javax.swing.text.html.HTML;
+import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class ExampleSDK {
 
-
     public static void main(String[] args) throws Exception {
+
         /**
          *   LoggerConsumer 有三种实例方式，根据业务需求设置，选择一种即可
          */
         /**
          * 1.该方式在1.3.1版本后不默认以大小切分文件，只按天切分文件
          */
-//        String log_dirctory = ".";  //设定logbus监控的目录
-//        ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory, 100);
-//        config.setAutoFlush(true);
-//        config.setInterval(5);
-//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
-
-        ThinkingDataAnalytics.BatchConsumer.Config config = new ThinkingDataAnalytics.BatchConsumer.Config();
-        config.setAutoFlush(true);
+        String log_dirctory = ".";  //设定logbus监控的目录
+        ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory, 100);
+        config.setAutoFlush(false);
         config.setInterval(5);
-        config.setThrowException(true);
-        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("http://localhost:8091", "APPID", config));
+        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
+
 
         /**
          * 2.该方式可以设置文件大小切分，以天切分为前提,这里设置的是5GB
@@ -55,7 +52,27 @@ public class ExampleSDK {
 //        batchConfig.setBatchSize(30);//flush条数，默认20
 //        batchConfig.setCompress("none");//内网推荐
 //        //初始化ThinkingDataAnalytics
-//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("url", "appid",batchConfig));
+//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("https://global-receiver-ta.thinkingdata.cn", "1b1c1fef65e3482bad5c9d0e6a823356", batchConfig));
+
+
+        /**
+         * 3.AsyncBatchConsumer使用配置类
+         */
+//        //选填配置项，默认batchSize = 20,compress = gzip
+//         ThinkingDataAnalytics.AsyncBatchConsumer.Config ayncBatchConfig = new ThinkingDataAnalytics.AsyncBatchConsumer.Config();
+//        ayncBatchConfig.setAutoFlush(true);
+//        ayncBatchConfig.setBatchSize(30);//flush条数，默认20
+//        ayncBatchConfig.setCompress("none");//内网推荐
+//        //初始化ThinkingDataAnalytics
+//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.AsyncBatchConsumer("https://global-receiver-ta.thinkingdata.cn", "1b1c1fef65e3482bad5c9d0e6a823356" , ayncBatchConfig));
+
+        // AsyncBatchConsumer
+//        ThinkingDataAnalytics.AsyncBatchConsumer.Config ayncBatchConfig = new ThinkingDataAnalytics.AsyncBatchConsumer.Config();
+////可配置压缩方式为：gzip，lzo，lz4，none，默认压缩方式为gzip，内网可以使用none
+//        ayncBatchConfig.setCompress("gzip");
+////可配置连接超时时间,单位ms
+//        ayncBatchConfig.setTimeout(30000);//10s
+//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.AsyncBatchConsumer("https://global-receiver-ta.thinkingdata.cn", "1b1c1fef65e3482bad5c9d0e6a823356",ayncBatchConfig));
 
         /**
          * DebugConsumer一条一条的发送，用于测试数据格式是否正确，禁止线上使用！！！
@@ -66,7 +83,7 @@ public class ExampleSDK {
         //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.DebugConsumer("url", "appid",false));
 
         //account_id 和  distinct_id 不能同时为null
-        String account_id = "xu";
+        String account_id = "xu_asyncBatch";
         String distinct_id = "SDIF21dEJWsI232IdSJ232d2332"; // 用户未登录时，可以使用产品自己生成的cookieId等唯一标识符来标注用户
         Map<String, Object> properties = new HashMap<>();
 
@@ -85,12 +102,38 @@ public class ExampleSDK {
         list.add("20.2");
         list.add("false");
         properties.put("list2", list);
+        properties.put("#first_check_id", "123456");
+
+        Map<String, Object> superM = new HashMap<>();
+        superM.put("test", "shp");
+        superM.put("test1", "shp1");
+        tga.setSuperProperties(superM);
+
+        tga.setDyNamicSuperProperties(
+                new Supplier<Map<String, Object>>() {
+                    @Override
+                    public Map<String, Object> get() {
+                        Map<String, Object> dynamicSuperProperties = new HashMap<>();
+                        dynamicSuperProperties.put("vipLevel", "20");
+                        return dynamicSuperProperties;
+                    }
+                }
+        );
+
         try {
-            tga.track(account_id, distinct_id, "test", properties); // 记录访问首页这个event
+            tga.track(account_id, distinct_id, "testShp_batchConsumer", properties); // 记录访问首页这个event
             tga.flush();
         } catch (Exception e) {
             System.out.println("except:" + e);
         }
+
+        // 首次事件
+        try {
+            tga.track_first(account_id, distinct_id, "textFrist", properties);
+        }catch (Exception e) {
+            System.out.println("except:" + e);
+        }
+
 
         //user_setOnce 只设置一次用户属性
         properties.clear();
@@ -101,7 +144,7 @@ public class ExampleSDK {
         properties.put("level", 10);
         try {
             tga.user_setOnce(account_id, distinct_id, properties);
-            tga.flush();
+//            tga.flush();
         } catch (Exception e) {
             System.out.println("except:" + e);
         }
@@ -121,7 +164,7 @@ public class ExampleSDK {
         properties.put("arrkey2", list1);
         try {
             tga.user_set(account_id, distinct_id, properties);
-            tga.flush();
+//            tga.flush();
         } catch (Exception e) {
             System.out.println("except:" + e);
         }
@@ -168,6 +211,7 @@ public class ExampleSDK {
             //do
             System.out.println("except:" + e);
         }
+
         //track_update
         properties.clear();
         properties.put("price", 100);
@@ -243,11 +287,12 @@ public class ExampleSDK {
         properties.put("OrderId", "order_id_b");   // 订单ID
         properties.put("ShipPrice", 10.0);             // 运费
         properties.put("OrderTotalPrice", 13.2);         // 订单的商品价格
-        properties.put("CancelReason", "不想买了"); // 取消订单的原因
+        properties.put("CancelReason", "111111不想买了"); // 取消订单的原因
         properties.put("CancelTiming", "AfterPay");   // 取消订单的时机
         properties.put("#time", new Date());
         try {
             tga.track(account_id, distinct_id, "CancelOrder", properties);
+            tga.flush();
         } catch (Exception e) {
             //do
             System.out.println("except:" + e);
@@ -264,9 +309,9 @@ public class ExampleSDK {
             System.out.println("except:" + e);
         }
 
-        //关闭TA
+//        关闭TA
         try {
-            Thread.sleep(3000);
+            Thread.sleep(30000);
             tga.close();
         } catch (Exception e) {
             //do
