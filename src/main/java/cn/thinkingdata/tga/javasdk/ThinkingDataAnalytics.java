@@ -47,14 +47,14 @@ public class ThinkingDataAnalytics {
     private final Map<String, Object> superProperties; // 公共属性
     private final boolean enableUUID;
 
-    private final static String LIB_VERSION = "2.0.0";
+    private final static String LIB_VERSION = "2.0.1";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
     private final static Pattern KEY_PATTERN = Pattern.compile("^(#[a-z][a-z0-9_]{0,49})|([a-z][a-z0-9_]{0,50})$", Pattern.CASE_INSENSITIVE);  // 以#号或者字母开头，由字母和数字组成的50个字符
 
     // 动态公共属性回调
-    private Supplier<Map<String, Object>> dynamicSuperProperties = null;
+    private DynamicSuperPropertiesTracker dynamicSuperProperties = null;
 
     /**
      * 构造函数.
@@ -272,7 +272,7 @@ public class ThinkingDataAnalytics {
     private Map<String, Object> dealWithSuperProperties() {
         Map<String, Object> allSuperProperties = new HashMap<>(superProperties);
         if (dynamicSuperProperties != null) {
-            Map<String, Object> dynamicProperties = dynamicSuperProperties.get();
+            Map<String, Object> dynamicProperties = dynamicSuperProperties.getDynamicSuperProperties();
             if (!dynamicProperties.isEmpty()) {
                 allSuperProperties.putAll(dynamicProperties);
             }
@@ -410,10 +410,10 @@ public class ThinkingDataAnalytics {
     /**
      * 设置动态公共属性，即此处设置的公共属性会在上报时获取值
      * 建议此回调方法中不要加入大量计算操作代码
-     * @param properties 动态公共属性
+     * @param dynamicSuperPropertiesTracker 动态公共属性
      */
-    public void setDyNamicSuperProperties(Supplier<Map<String, Object>> properties) {
-        dynamicSuperProperties = properties;
+    public void setDynamicSuperPropertiesTracker(DynamicSuperPropertiesTracker dynamicSuperPropertiesTracker) {
+        dynamicSuperProperties = dynamicSuperPropertiesTracker;
     }
 
 

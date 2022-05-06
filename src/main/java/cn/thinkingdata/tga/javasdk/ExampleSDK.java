@@ -1,7 +1,5 @@
 package cn.thinkingdata.tga.javasdk;
 
-import javax.swing.text.html.HTML;
-import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -109,16 +107,14 @@ public class ExampleSDK {
         superM.put("test1", "shp1");
         tga.setSuperProperties(superM);
 
-        tga.setDyNamicSuperProperties(
-                new Supplier<Map<String, Object>>() {
-                    @Override
-                    public Map<String, Object> get() {
-                        Map<String, Object> dynamicSuperProperties = new HashMap<>();
-                        dynamicSuperProperties.put("vipLevel", "20");
-                        return dynamicSuperProperties;
-                    }
-                }
-        );
+        tga.setDynamicSuperPropertiesTracker(new DynamicSuperPropertiesTracker() {
+            @Override
+            public Map<String, Object> getDynamicSuperProperties() {
+                Map<String, Object> dynamicSuperProperties = new HashMap<>();
+                dynamicSuperProperties.put("vipLevel", "666");
+                return dynamicSuperProperties;
+            }
+        });
 
         try {
             tga.track(account_id, distinct_id, "testShp_batchConsumer", properties); // 记录访问首页这个event

@@ -1,4 +1,7 @@
-**2.0.0** (2021/12/20)  
+**2.0.1** (2022/05/06)  
+- 优化设置动态公共属性方法 setDynamicSuperPropertiesTracker;  
+
+**2.0.0** (2022/04/29)  
 - 支持动态公共属性设置 dynamicSuperProperties  
 - 支持去重用户属性追加 user_unique_append  
 - 支持数据批量异步上报 AsyncBatchConsumer  
