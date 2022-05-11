@@ -47,7 +47,7 @@ public class ThinkingDataAnalytics {
     private final Map<String, Object> superProperties; // 公共属性
     private final boolean enableUUID;
 
-    private final static String LIB_VERSION = "2.0.1";
+    private final static String LIB_VERSION = "2.0.2";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
@@ -86,7 +86,7 @@ public class ThinkingDataAnalytics {
         USER_DEL("user_del"),
         USER_UNSET("user_unset"),
         USER_APPEND("user_append"),
-        USER_UNIQ_APPEND("user_uniqAppend"),
+        USER_UNIQ_APPEND("user_uniq_append"),
         TRACK_UPDATE("track_update"),
         TRACK_OVERWRITE("track_overwrite");
 
@@ -1015,62 +1015,6 @@ public class ThinkingDataAnalytics {
             flush();
             if (httpService != null) {
                 httpService.close();
-            }
-        }
-    }
-
-    public static  class AsyncBatchConsumer extends BatchConsumer {
-
-        // 创建线程池
-        public static ExecutorService pool = null;
-
-        public AsyncBatchConsumer(String serverUrl, String appId) throws URISyntaxException {
-            super(serverUrl, appId);
-            this.pool = Executors.newFixedThreadPool(5);
-
-        }
-
-        public AsyncBatchConsumer(String serverUrl, String appId, boolean isThrowException) throws URISyntaxException {
-            super(serverUrl, appId, isThrowException);
-            this.pool = Executors.newFixedThreadPool(5);
-        }
-
-        public AsyncBatchConsumer(String serverUrl, String appId, Config config) throws URISyntaxException {
-            super(serverUrl, appId, config);
-            this.pool = Executors.newFixedThreadPool(5);
-        }
-
-        public AsyncBatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval) throws URISyntaxException {
-            super(serverUrl, appId, batchSize, timeout, autoFlush, interval);
-            this.pool = Executors.newFixedThreadPool(5);
-        }
-
-        public AsyncBatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval, String compress) throws URISyntaxException {
-            super(serverUrl, appId, batchSize, timeout, autoFlush, interval, compress);
-            this.pool = Executors.newFixedThreadPool(5);
-        }
-
-        @Override
-        public void httpSending(final String data, final int dataSize) {
-            pool.execute( new Runnable() {
-                        @Override
-                        public void run() {
-                            callSuperHttpSending(data, dataSize);
-                        }
-                    }
-            );
-        }
-
-        void callSuperHttpSending(final String data, final int dataSize) {
-            super.httpSending(data, dataSize);
-        }
-
-        @Override
-        public void close() {
-            super.close();
-            if (null != pool) {
-                pool.shutdown();
-                pool = null;
             }
         }
     }

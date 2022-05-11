@@ -1,3 +1,7 @@
+**2.0.2** (2022/05/10)  
+- 修复 user_uniq_append 的type类型错误; 
+- 移除 AsyncBatchConsumer;
+
 **2.0.1** (2022/05/06)  
 - 优化设置动态公共属性方法 setDynamicSuperPropertiesTracker;  
 

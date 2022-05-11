@@ -13,11 +13,11 @@ public class ExampleSDK {
         /**
          * 1.该方式在1.3.1版本后不默认以大小切分文件，只按天切分文件
          */
-        String log_dirctory = ".";  //设定logbus监控的目录
-        ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory, 100);
-        config.setAutoFlush(false);
-        config.setInterval(5);
-        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
+//        String log_dirctory = ".";  //设定logbus监控的目录
+//        ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory, 100);
+//        config.setAutoFlush(false);
+//        config.setInterval(5);
+//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
 
 
         /**
@@ -27,11 +27,11 @@ public class ExampleSDK {
         /**
          * 3.该方式是在版本1.2.0以后的实例，之前的实例方式也保留着，版本1.3.1以后默认大小1GB 取消，用户可根据数据量设计按小时切分还是按大小切分，默认按天切分
          */
-        //ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory);
-        //config.setRotateMode(ThinkingDataAnalytics.LoggerConsumer.RotateMode.DAILY);//可以设置是按天(DAILY)切分，还是按小时（HOURLY）切分，默认按天切分文件，可不设置
-        //config.setFileSize(2*1024);//设置在按天切分的前提下，按大小切分文件，可不设置
-        //config.setBufferSize(8192);//默认是8192字节(8k)然后刷新数据(flush)，可设置字节
-        //ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
+//        ThinkingDataAnalytics.LoggerConsumer.Config config = new ThinkingDataAnalytics.LoggerConsumer.Config(log_dirctory);
+//        config.setRotateMode(ThinkingDataAnalytics.LoggerConsumer.RotateMode.DAILY);//可以设置是按天(DAILY)切分，还是按小时（HOURLY）切分，默认按天切分文件，可不设置
+//        config.setFileSize(2*1024);//设置在按天切分的前提下，按大小切分文件，可不设置
+//        config.setBufferSize(8192);//默认是8192字节(8k)然后刷新数据(flush)，可设置字节
+//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.LoggerConsumer(config));
 
 
         /**
@@ -45,32 +45,13 @@ public class ExampleSDK {
         /**
          * 2.BatchConsumer使用配置类
          */
-//        //选填配置项，默认batchSize = 20,compress = gzip
-//        ThinkingDataAnalytics.BatchConsumer.Config batchConfig = new ThinkingDataAnalytics.BatchConsumer.Config();
-//        batchConfig.setBatchSize(30);//flush条数，默认20
-//        batchConfig.setCompress("none");//内网推荐
-//        //初始化ThinkingDataAnalytics
-//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("https://global-receiver-ta.thinkingdata.cn", "1b1c1fef65e3482bad5c9d0e6a823356", batchConfig));
+        //选填配置项，默认batchSize = 20,compress = gzip
+        ThinkingDataAnalytics.BatchConsumer.Config batchConfig = new ThinkingDataAnalytics.BatchConsumer.Config();
+        batchConfig.setBatchSize(30);//flush条数，默认20
+        batchConfig.setCompress("none");//内网推荐
+        //初始化ThinkingDataAnalytics
+        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.BatchConsumer("https://global-receiver-ta.thinkingdata.cn", "1b1c1fef65e3482bad5c9d0e6a823356", batchConfig));
 
-
-        /**
-         * 3.AsyncBatchConsumer使用配置类
-         */
-//        //选填配置项，默认batchSize = 20,compress = gzip
-//         ThinkingDataAnalytics.AsyncBatchConsumer.Config ayncBatchConfig = new ThinkingDataAnalytics.AsyncBatchConsumer.Config();
-//        ayncBatchConfig.setAutoFlush(true);
-//        ayncBatchConfig.setBatchSize(30);//flush条数，默认20
-//        ayncBatchConfig.setCompress("none");//内网推荐
-//        //初始化ThinkingDataAnalytics
-//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.AsyncBatchConsumer("https://global-receiver-ta.thinkingdata.cn", "1b1c1fef65e3482bad5c9d0e6a823356" , ayncBatchConfig));
-
-        // AsyncBatchConsumer
-//        ThinkingDataAnalytics.AsyncBatchConsumer.Config ayncBatchConfig = new ThinkingDataAnalytics.AsyncBatchConsumer.Config();
-////可配置压缩方式为：gzip，lzo，lz4，none，默认压缩方式为gzip，内网可以使用none
-//        ayncBatchConfig.setCompress("gzip");
-////可配置连接超时时间,单位ms
-//        ayncBatchConfig.setTimeout(30000);//10s
-//        ThinkingDataAnalytics tga = new ThinkingDataAnalytics(new ThinkingDataAnalytics.AsyncBatchConsumer("https://global-receiver-ta.thinkingdata.cn", "1b1c1fef65e3482bad5c9d0e6a823356",ayncBatchConfig));
 
         /**
          * DebugConsumer一条一条的发送，用于测试数据格式是否正确，禁止线上使用！！！
@@ -111,7 +92,7 @@ public class ExampleSDK {
             @Override
             public Map<String, Object> getDynamicSuperProperties() {
                 Map<String, Object> dynamicSuperProperties = new HashMap<>();
-                dynamicSuperProperties.put("vipLevel", "666");
+                dynamicSuperProperties.put("vipLevel", "777");
                 return dynamicSuperProperties;
             }
         });
@@ -125,7 +106,7 @@ public class ExampleSDK {
 
         // 首次事件
         try {
-            tga.track_first(account_id, distinct_id, "textFrist", properties);
+            tga.track_first(account_id, distinct_id, "text_Frist", properties);
         }catch (Exception e) {
             System.out.println("except:" + e);
         }
@@ -207,6 +188,21 @@ public class ExampleSDK {
             //do
             System.out.println("except:" + e);
         }
+
+        // user_uniqAppend 类型去重
+        properties.clear();
+        List<String> appendList3 = new ArrayList<>();
+        appendList3.add("test_1");
+        appendList3.add("test2");
+        appendList3.add("test2");
+        properties.put("test_uni2", appendList3);
+        try {
+            tga.user_uniqAppend(account_id, distinct_id, properties);
+        } catch (Exception e) {
+            //do
+            System.out.println("except:" + e);
+        }
+
 
         //track_update
         properties.clear();
@@ -307,7 +303,7 @@ public class ExampleSDK {
 
 //        关闭TA
         try {
-            Thread.sleep(30000);
+            Thread.sleep(90000);
             tga.close();
         } catch (Exception e) {
             //do
