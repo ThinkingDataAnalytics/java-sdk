@@ -47,15 +47,15 @@ public class ThinkingDataAnalytics {
     private final Map<String, Object> superProperties; // 公共属性
     private final boolean enableUUID;
 
-    private final static String LIB_VERSION = "2.0.2";
+    private final static String LIB_VERSION = "2.0.4";
     private final static String LIB_NAME = "tga_java_sdk";
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
-    private final static Pattern KEY_PATTERN = Pattern.compile("^(#[a-z][a-z0-9_]{0,49})|([a-z][a-z0-9_]{0,50})$", Pattern.CASE_INSENSITIVE);  // 以#号或者字母开头，由字母和数字组成的50个字符
+    private final static Pattern KEY_PATTERN = Pattern.compile("^(#[a-z][a-z0-9_]{0,49})|([a-z][a-z0-9_]{0,50})|(__[a-z][a-z0-9_]{0,50})$", Pattern.CASE_INSENSITIVE);  // 以#号或者字母开头，由字母和数字组成的50个字符
 
     // 动态公共属性回调
     private DynamicSuperPropertiesTracker dynamicSuperProperties = null;
-
+    
     /**
      * 构造函数.
      *
@@ -291,7 +291,10 @@ public class ThinkingDataAnalytics {
             throw new InvalidArgumentException("accountId or distinctId must be provided.");
         }
 
-        Map<String, Object> finalProperties = (properties == null) ? new HashMap<String, Object>() : new HashMap<>(properties);
+//        Map<String, Object> finalProperties = (properties == null) ? new HashMap<String, Object>() : new HashMap<>(properties);
+
+        Map<String, Object> finalProperties = (properties == null) ? new HashMap<String, Object>() : new ConcurrentHashMap<String, Object>(properties);
+
         Map<String, Object> event = new HashMap<>();
 
         //#uuid 只支持UUID标准格式xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
@@ -302,6 +305,7 @@ public class ThinkingDataAnalytics {
             event.put("#uuid", UUID.randomUUID().toString());
         }
         assertProperties(type, finalProperties);
+
         if (!TextUtils.isEmpty(distinctId)) {
             event.put("#distinct_id", distinctId);
         }
@@ -1064,7 +1068,6 @@ public class ThinkingDataAnalytics {
                 httpService.close();
             }
         }
-
     }
 
     private static class HttpService implements Closeable {
