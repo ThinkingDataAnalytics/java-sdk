@@ -18,7 +18,7 @@ public class SdkUnitTest {
 
     public void init() {
         consumer = new TATestConsumer();
-        sdk = new ThinkingDataAnalytics(consumer);
+        sdk = new ThinkingDataAnalytics(consumer,false,true);
     }
     @Test
     public void testAccountIdDistinctId() {
