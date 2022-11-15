@@ -4,8 +4,11 @@ import cn.thinkingdata.tga.javasdk.exception.IllegalDataException;
 import cn.thinkingdata.tga.javasdk.exception.NeedRetryException;
 import cn.thinkingdata.tga.javasdk.inter.Consumer;
 import cn.thinkingdata.tga.javasdk.request.TABatchRequest;
+import cn.thinkingdata.tga.javasdk.util.TACommonUtil;
 import cn.thinkingdata.tga.javasdk.util.TALogger;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializeConfig;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -185,7 +188,8 @@ public class BatchConsumer implements Consumer {
 
     @Override
     public void add(Map<String, Object> message) {
-        TALogger.print("collect data="+JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT));
+        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, null, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
+        TALogger.print("collect data="+formatMsg);
         synchronized (messageLock) {
             messageChannel.add(message);
         }
@@ -228,7 +232,7 @@ public class BatchConsumer implements Consumer {
             List<Map<String, Object>> buffer = cacheBuffer.getFirst();
 
             try {
-                String data = JSON.toJSONStringWithDateFormat(buffer, DEFAULT_DATE_FORMAT);
+                String data = JSON.toJSONString(buffer, SerializeConfig.globalInstance, null, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
                 TALogger.print("flush data="+data);
                 httpSending(data, buffer.size());
                 cacheBuffer.removeFirst();

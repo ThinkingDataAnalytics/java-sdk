@@ -18,7 +18,7 @@ public class DebugConsumerTest {
     {
         try {
             ThinkingDataAnalytics.enableLog(true);
-            taSDK = new ThinkingDataAnalytics(new DebugConsumer("https://receiver-ta-demo.thinkingdata.cn","cb1b413747ac4a2386c62a2575ac7746"));
+            taSDK = new ThinkingDataAnalytics(new DebugConsumer("serverUrl","appId","deviceId"));
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }

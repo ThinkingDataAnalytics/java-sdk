@@ -17,13 +17,15 @@ import java.util.List;
 
 public class TADebugRequest extends  TABaseRequest{
     private Boolean writeData = true;
+    private String deviceId;
     public TADebugRequest(URI server_uri, String appId, Integer timeout) {
         super(server_uri, appId, timeout);
     }
 
-    public TADebugRequest(URI server_uri, String appId, boolean writeData) {
+    public TADebugRequest(URI server_uri, String appId, boolean writeData, String deviceId) {
         super(server_uri, appId);
         this.writeData = writeData;
+        this.deviceId = deviceId;
     }
 
     public TADebugRequest(URI server_uri, String appId) {
@@ -57,6 +59,9 @@ public class TADebugRequest extends  TABaseRequest{
         nameValuePairs.add(new BasicNameValuePair("data", data));
         if (!this.writeData) {
             nameValuePairs.add(new BasicNameValuePair("dryRun", String.valueOf(1)));
+        }
+        if (this.deviceId != null && this.deviceId.length() > 0) {
+            nameValuePairs.add(new BasicNameValuePair("deviceId", this.deviceId));
         }
         return new UrlEncodedFormEntity(nameValuePairs, StandardCharsets.UTF_8);
     }

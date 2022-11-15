@@ -2,8 +2,10 @@ package cn.thinkingdata.tga.javasdk;
 
 import cn.thinkingdata.tga.javasdk.inter.Consumer;
 import cn.thinkingdata.tga.javasdk.request.TADebugRequest;
+import cn.thinkingdata.tga.javasdk.util.TACommonUtil;
 import cn.thinkingdata.tga.javasdk.util.TALogger;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializeConfig;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -24,18 +26,26 @@ public class DebugConsumer implements Consumer {
         this(serverUrl, appId, true);
     }
 
+    public DebugConsumer(String serverUrl, String appId, String deviceId) throws URISyntaxException {
+        this(serverUrl, appId, true, deviceId);
+    }
+
     public DebugConsumer(String serverUrl, String appId, boolean writeData) throws URISyntaxException {
+        this(serverUrl, appId, writeData, null);
+    }
+
+    public DebugConsumer(String serverUrl, String appId, boolean writeData, String deviceId) throws URISyntaxException {
         TALogger.enableLog(true);
         TALogger.print("DebugConsumer Model,Server:"+serverUrl+"  Appid:"+appId);
         URI uri = new URI(serverUrl);
         URI restfulUri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
                 "/data_debug", uri.getQuery(), uri.getFragment());
-        httpService = new TADebugRequest(restfulUri, appId, writeData);
+        httpService = new TADebugRequest(restfulUri, appId, writeData, deviceId);
     }
 
     @Override
     public void add(Map<String, Object> message) {
-        String data = JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT);
+        String data = JSON.toJSONString(message, SerializeConfig.globalInstance, null, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
         TALogger.print("collect data="+data);
         try {
             httpService.send(data, 1);

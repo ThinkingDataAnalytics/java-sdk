@@ -1,10 +1,14 @@
 package cn.thinkingdata.tga.javasdk.test;
 
 import cn.thinkingdata.tga.javasdk.inter.Consumer;
+import cn.thinkingdata.tga.javasdk.util.TACommonUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializeConfig;
 
 import java.util.Map;
+
+import static cn.thinkingdata.tga.javasdk.TAConstData.DEFAULT_DATE_FORMAT;
 
 /**
  * @author Sun Zeyu
@@ -17,9 +21,10 @@ public class TATestConsumer implements Consumer {
 
     @Override
     public void add(Map<String, Object> message) {
-        JSONObject data = JSON.parseObject(JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT));
+        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, null, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
+        JSONObject data = JSON.parseObject(formatMsg);
         this.taData = new TaDataDo(data);
-//        System.out.println(JSON.toJSONStringWithDateFormat(message, DEFAULT_DATE_FORMAT));
+//        System.out.println(formatMsg);
 //        this.taData = JSONObject.parseObject(JSON.toJSONString(message), TaDataDo.class);
     }
 
