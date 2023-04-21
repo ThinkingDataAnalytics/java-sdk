@@ -3,11 +3,9 @@ package cn.thinkingdata.tga.javasdk.test;
 import cn.thinkingdata.tga.javasdk.LoggerConsumer;
 import cn.thinkingdata.tga.javasdk.ThinkingDataAnalytics;
 import cn.thinkingdata.tga.javasdk.exception.InvalidArgumentException;
-import org.apache.commons.logging.Log;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 

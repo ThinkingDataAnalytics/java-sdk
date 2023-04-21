@@ -3,7 +3,7 @@ package cn.thinkingdata.tga.javasdk;
 import java.util.regex.Pattern;
 
 public class TAConstData {
-    public final static String LIB_VERSION = "2.1.2-beta.1";
+    public final static String LIB_VERSION = "2.1.2-beta.2";
     public final static String LIB_NAME = "tga_java_sdk";
     public final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
 
