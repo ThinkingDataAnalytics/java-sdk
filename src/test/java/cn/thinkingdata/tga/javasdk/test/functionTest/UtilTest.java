@@ -1,4 +1,4 @@
-package cn.thinkingdata.tga.javasdk.test;
+package cn.thinkingdata.tga.javasdk.test.functionTest;
 
 import cn.thinkingdata.tga.javasdk.util.TAPropertyUtil;
 import org.junit.Assert;
@@ -11,7 +11,7 @@ public class UtilTest {
     {
     }
     @Test
-    //验证Properties key的匹配规则
+    // check rules of keys
     public void test1()
     {
         Assert.assertFalse( TAPropertyUtil.isValidKey(null));

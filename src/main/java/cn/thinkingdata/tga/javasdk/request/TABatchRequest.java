@@ -79,7 +79,7 @@ public class TABatchRequest extends TABaseRequest {
             }
             return new ByteArrayEntity(dataCompressed);
         } catch (IOException e) {
-            throw new NeedRetryException("压缩数据失败！", e);
+            throw new NeedRetryException("compress failed！", e);
         }
     }
 

@@ -16,12 +16,12 @@ import java.util.*;
 import static cn.thinkingdata.tga.javasdk.TAConstData.DEFAULT_DATE_FORMAT;
 public class BatchConsumer implements Consumer {
 
-    private final int batchSize;                         // flush到TA的数据条数
+    private final int batchSize;                         // flush event count each time
     private final int maxCacheSize;
     private final boolean isThrowException;
     private Timer autoFlushTimer;
 
-    private final static int MAX_BATCH_SIZE = 1000;      // flush到TA的数据条数上限
+    private final static int MAX_BATCH_SIZE = 1000;      // max limit of flush event count 
     private final Object messageLock = new Object();
     private final Object cacheLock = new Object();
     private List<Map<String, Object>> messageChannel;
@@ -29,33 +29,33 @@ public class BatchConsumer implements Consumer {
     private final TABatchRequest httpService;
 
     /**
-     * 创建指定接收端地址和 APP ID 的 BatchConsumer
+     * init BatchConsumer with serverUrl and appId
      *
-     * @param serverUrl 接收端地址
-     * @param appId     APP ID
-     * @throws URISyntaxException 上传地址异常
+     * @param serverUrl serverUrl
+     * @param appId     appId
+     * @throws URISyntaxException exception
      */
     public BatchConsumer(String serverUrl, String appId) throws URISyntaxException {
         this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, true);
     }
 
     /**
-     * 创建指定接收端地址和 APP ID 的 BatchConsumer
+     * init BatchConsumer with serverUrl and appId
      *
-     * @param serverUrl        接收端地址
+     * @param serverUrl        serverUrl
      * @param appId            APP ID
-     * @param isThrowException 出错时是否抛出异常
-     * @throws URISyntaxException 上传地址异常
+     * @param isThrowException throw exception or not
+     * @throws URISyntaxException exception
      */
     public BatchConsumer(String serverUrl, String appId, boolean isThrowException) throws URISyntaxException {
         this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, isThrowException);
     }
 
     /**
-     * @param serverUrl 接收端地址
+     * @param serverUrl serverUrl
      * @param appId     APP ID
-     * @param config    BatchConsumer配置类
-     * @throws URISyntaxException 上传地址异常
+     * @param config    BatchConsumer config
+     * @throws URISyntaxException exception
      */
     public BatchConsumer(String serverUrl, String appId, Config config) throws URISyntaxException {
         this(serverUrl, appId, config.batchSize, config.timeout, config.autoFlush, config.interval, config.compress,
@@ -64,31 +64,31 @@ public class BatchConsumer implements Consumer {
 
 
     /**
-     * 创建指定接收端地址和 APP ID 的 BatchConsumer，并设定 batchSize, 网络请求 timeout, 发送频次
+     * init BatchConsumer
      *
-     * @param serverUrl 接收端地址
+     * @param serverUrl serverUrl
      * @param appId     APP ID
-     * @param batchSize 缓存数目上线
-     * @param timeout   超时时长，单位 ms
-     * @param autoFlush 自动上传开关
-     * @param interval  自动上传间隔，单位秒
-     * @throws URISyntaxException 上传地址异常
+     * @param batchSize flush event count each time
+     * @param timeout   http timeout (Unit: mill second)
+     * @param autoFlush is auto flush or not
+     * @param interval  auto flush spacing (Unit: second)
+     * @throws URISyntaxException exception
      */
     public BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval) throws URISyntaxException {
         this(serverUrl, appId, batchSize, timeout, autoFlush, interval, "gzip", 0, true);
     }
 
     /**
-     * 创建指定接收端地址和 APP ID 的 BatchConsumer，并设定 batchSize, 网络请求 timeout, 发送频次
+     * init BatchConsumer
      *
-     * @param serverUrl 接收端地址
+     * @param serverUrl serverUrl
      * @param appId     APP ID
-     * @param batchSize 缓存数目上线
-     * @param timeout   超时时长，单位 ms
-     * @param autoFlush 自动上传开关
-     * @param interval  发送间隔，单位秒
-     * @param compress  压缩方式
-     * @throws URISyntaxException 上传地址异常
+     * @param batchSize flush event count each time
+     * @param timeout   http timeout (Unit: mill second)
+     * @param autoFlush is auto flush or not
+     * @param interval  auto flush spacing (Unit: second)
+     * @param compress  compress type
+     * @throws URISyntaxException exception
      */
     public BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval,
                          String compress) throws URISyntaxException {
@@ -96,17 +96,18 @@ public class BatchConsumer implements Consumer {
     }
 
     /**
+     * init BatchConsumer
      *
-     * @param serverUrl             接收端地址
+     * @param serverUrl             serverUrl
      * @param appId                 APP ID
-     * @param batchSize             flush缓存容量
-     * @param timeout               超时时长，单位ms
-     * @param autoFlush             是否开启定时器
-     * @param interval              定时器的间隔，单位s
-     * @param compress              压缩方式
-     * @param maxCacheSize          最大几个缓存容量单位
-     * @param isThrowException      上传地址异常
-     * @throws URISyntaxException   URI不合法异常
+     * @param batchSize             flush event count each time
+     * @param timeout               http timeout (Unit: mill second)
+     * @param autoFlush             is auto flush or not
+     * @param interval              auto flush spacing (Unit: second)
+     * @param compress              compress type
+     * @param maxCacheSize          max buffer count
+     * @param isThrowException      is throw exception or not
+     * @throws URISyntaxException   exception
      */
     private BatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval,
                           String compress, int maxCacheSize, boolean isThrowException) throws URISyntaxException {
@@ -134,7 +135,7 @@ public class BatchConsumer implements Consumer {
     }
 
     /**
-     * BatchConsumer 的 配置类
+     * BatchConsumer config
      */
     public static class Config {
         private int batchSize = 20;
@@ -149,21 +150,21 @@ public class BatchConsumer implements Consumer {
         }
 
         /**
-         * @param batchSize BatchConsumer的flush条数，缓存数目
+         * @param batchSize flush event count each time
          */
         public void setBatchSize(int batchSize) {
             this.batchSize = batchSize;
         }
 
         /**
-         * @param interval 自动发送间隔，单位秒
+         * @param interval auto flush spacing (Unit: second)
          */
         public void setInterval(int interval) {
             this.interval = interval;
         }
 
         /**
-         * @param compress BatchConsumer的压缩方式
+         * @param compress compress type
          */
         public void setCompress(String compress) {
             this.compress = compress;
@@ -199,7 +200,7 @@ public class BatchConsumer implements Consumer {
     }
 
     /**
-     * 将缓存的数据全部上传
+     * upload all data in buffer immediately
      */
     @Override
     public void flush() {

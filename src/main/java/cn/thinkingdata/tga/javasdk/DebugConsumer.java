@@ -16,11 +16,11 @@ import static cn.thinkingdata.tga.javasdk.TAConstData.DEFAULT_DATE_FORMAT;
 public class DebugConsumer implements Consumer {
      TADebugRequest httpService;
     /**
-     * 创建指定接收端地址和 APP ID 的 DebugConsumer
+     * init DebugConsumer
      *
-     * @param serverUrl 接收端地址
+     * @param serverUrl serverUrl
      * @param appId     APP ID
-     * @throws URISyntaxException 上传地址异常
+     * @throws URISyntaxException exception
      */
     public DebugConsumer(String serverUrl, String appId) throws URISyntaxException {
         this(serverUrl, appId, true);

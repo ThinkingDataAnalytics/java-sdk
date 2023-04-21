@@ -3,16 +3,17 @@ package cn.thinkingdata.tga.javasdk;
 import java.util.regex.Pattern;
 
 public class TAConstData {
-    public final static String LIB_VERSION = "2.1.1";
+    public final static String LIB_VERSION = "2.1.2-beta.1";
     public final static String LIB_NAME = "tga_java_sdk";
     public final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
+
+    // A string of 50 letters and digits that starts with '#' or a letter
     public final static Pattern KEY_PATTERN = Pattern.compile(
-            "^(#[a-z][a-z\\d_]{0,49})|([a-z][a-z\\d_]{0,50})|(__[a-z][a-z\\d_]{0,50})$", Pattern.CASE_INSENSITIVE);// 以#号或者字母开头，由字母和数字组成
-                                                                                                                   // 的50个字符
+            "^(#[a-z][a-z\\d_]{0,49})|([a-z][a-z\\d_]{0,50})|(__[a-z][a-z\\d_]{0,50})$", Pattern.CASE_INSENSITIVE);
 
     public enum DataType {
         /**
-         * 上报数据接口名
+         * SDK api
          */
         TRACK("track"),
         USER_SET("user_set"),

@@ -1,4 +1,4 @@
-package cn.thinkingdata.tga.javasdk.test;
+package cn.thinkingdata.tga.javasdk.test.functionTest;
 
 import cn.thinkingdata.tga.javasdk.inter.Consumer;
 import cn.thinkingdata.tga.javasdk.util.TACommonUtil;
@@ -8,24 +8,20 @@ import com.alibaba.fastjson.serializer.SerializeConfig;
 
 import java.util.Map;
 
-import static cn.thinkingdata.tga.javasdk.TAConstData.DEFAULT_DATE_FORMAT;
-
 /**
  * @author Sun Zeyu
- * @date 2021/6/9 10:36 上午
+ * @date 2021/6/9 10:36
  */
-public class TATestConsumer implements Consumer {
+public class TemporaryConsumer implements Consumer {
 
     private final static String DEFAULT_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
-    private TaDataDo taData;
+    private TemporaryEvent taData;
 
     @Override
     public void add(Map<String, Object> message) {
         String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, null, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
         JSONObject data = JSON.parseObject(formatMsg);
-        this.taData = new TaDataDo(data);
-//        System.out.println(formatMsg);
-//        this.taData = JSONObject.parseObject(JSON.toJSONString(message), TaDataDo.class);
+        this.taData = new TemporaryEvent(data);
     }
 
     @Override
@@ -38,7 +34,7 @@ public class TATestConsumer implements Consumer {
 
     }
 
-    public TaDataDo getTaData() {
+    public TemporaryEvent getTaData() {
         return this.taData;
     }
 }

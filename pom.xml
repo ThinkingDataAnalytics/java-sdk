@@ -5,7 +5,7 @@
     <groupId>cn.thinkingdata</groupId>
     <artifactId>thinkingdatasdk</artifactId>
 
-    <version>2.1.1</version>
+    <version>2.1.2-beta.1</version>
 
     <!-- packaging>jar</packaging -->
 
@@ -32,7 +32,7 @@
         <developer>
             <name>thinkingdata</name>
             <email>sdk@thinkingdata.cn</email>
-            <url>http://www.thinkinggame.cn</url>
+            <url>https://www.thinkingdata.cn</url>
         </developer>
     </developers>
 

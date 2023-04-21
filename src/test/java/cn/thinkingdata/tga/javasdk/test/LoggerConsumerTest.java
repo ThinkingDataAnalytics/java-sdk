@@ -17,7 +17,7 @@ public class LoggerConsumerTest {
     @Before
     public void init() {
         ThinkingDataAnalytics.enableLog(true);
-        LoggerConsumer.Config config = new LoggerConsumer.Config("~/log");
+        LoggerConsumer.Config config = new LoggerConsumer.Config("H:/log");
         config.setAutoFlush(true);
         taSDK = new ThinkingDataAnalytics(new LoggerConsumer(config), false, false);
     }

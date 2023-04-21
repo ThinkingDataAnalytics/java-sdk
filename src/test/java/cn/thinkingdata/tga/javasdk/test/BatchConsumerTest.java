@@ -19,11 +19,10 @@ public class BatchConsumerTest {
         try {
             ThinkingDataAnalytics.enableLog(true);
             taSDK = new ThinkingDataAnalytics(
-                    new BatchConsumer("https://receiver-ta-demo.thinkingdata.cn", "cb1b413747ac4a2386c62a2575ac7746"));
+                    new BatchConsumer("your server url", "your app id"));
         } catch (URISyntaxException e) {
 
         }
-        ;
     }
 
     @Test

@@ -20,47 +20,47 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import static cn.thinkingdata.tga.javasdk.TAConstData.DEFAULT_DATE_FORMAT;
 /**
- * LoggerConsumer 批量实时写本地文件，文件以天为分隔，需要搭配 LogBus 进行上传. 建议使用.
+ * write data to file, it works with LogBus2
  */
 public class LoggerConsumer implements Consumer {
     /**
-     * 日志切分模式
+     * file rotate mode
      */
     public enum RotateMode {
-        DAILY,//按天切分
-        HOURLY//按小时切分
+        DAILY,// in days
+        HOURLY// in hours
     }
 
     /**
-     * LoggerConsumer 的配置信息
+     * LoggerConsumer config
      */
     public static class Config {
-        String logDirectory;                            // 日志存放路径
-        RotateMode rotateMode = RotateMode.DAILY;       // 日志切分模式，默认以天为单位
+        String logDirectory;                            // directory of log file
+        RotateMode rotateMode = RotateMode.DAILY;       // file rotate mode, in days default
         String lockFileName;                            //
-        String fileNamePrefix;                          // 日志文件名前缀
-        int interval = 0;                               // 日志上传间隔
-        int fileSize = 0;                               // 单个日志文件的最大大小
-        int bufferSize = 8192;                          // 缓冲区容量
-        boolean autoFlush = false;                      // 是否开启定时器
+        String fileNamePrefix;                          // prefix of log file
+        int interval = 0;                               // auto flush interval (second)
+        int fileSize = 0;                               // max size of single log file (MByte)
+        int bufferSize = 8192;                          // buffer size (unit: byte)
+        boolean autoFlush = false;                      // is enable auto flush or not
 
 
 
 
         /**
-         * 创建指定日志存放路径的 LoggerConsumer 配置
+         * init LoggerConsumer config
          *
-         * @param logDirectory 日志存放路径
+         * @param logDirectory directory of log file
          */
         public Config(String logDirectory) {
             this(logDirectory, 0);
         }
 
         /**
-         * 创建指定日志存放路径和日志大小的 LoggerConsumer 配置
+         * init LoggerConsumer config
          *
-         * @param logDirectory 日志存放路径
-         * @param fileSize     日志大小, 单位 MB, 默认为无限大
+         * @param logDirectory directory of log file
+         * @param fileSize     max size of single log file (MByte), default infinite
          */
         public Config(String logDirectory, int fileSize) {
             this.logDirectory = logDirectory;
@@ -68,18 +68,18 @@ public class LoggerConsumer implements Consumer {
         }
 
         /**
-         * 设置日志切分模式
+         * set file rotate mode
          *
-         * @param rotateMode 日志切分模式
+         * @param rotateMode remote mode
          */
         public void setRotateMode(RotateMode rotateMode) {
             this.rotateMode = rotateMode;
         }
 
         /**
-         * 设置日志大小
+         * set file size
          *
-         * @param fileSize 日志大小，单位 MB
+         * @param fileSize file size (unit: Mb)
          */
         public void setFileSize(int fileSize) {
             this.fileSize = fileSize;
@@ -90,36 +90,36 @@ public class LoggerConsumer implements Consumer {
         }
 
         /**
-         * 设置缓冲区容量, 当超过该容量时会触发 flush 动作
+         * set buffer size
          *
-         * @param bufferSize 缓冲区大小，单位 byte.
+         * @param bufferSize buffer size (unit: byte).
          */
         public void setBufferSize(int bufferSize) {
             this.bufferSize = bufferSize;
         }
 
         /**
-         * 设置用户名前缀
+         * prefix of file
          *
-         * @param fileNamePrefix 用户名前缀
+         * @param fileNamePrefix prefix
          */
         public void setFilenamePrefix(String fileNamePrefix) {
             this.fileNamePrefix = fileNamePrefix;
         }
 
         /**
-         * 设置自动保存
+         * is auto flush or not
          *
-         * @param autoFlush 是否自动保存
+         * @param autoFlush auto flush
          */
         public void setAutoFlush(boolean autoFlush) {
             this.autoFlush = autoFlush;
         }
 
         /**
-         * 自动保存间隔
+         * auto flush interval
          *
-         * @param interval 自动保存任务间隔
+         * @param interval interval
          */
         public void setInterval(int interval) {
             this.interval = interval;
@@ -138,13 +138,13 @@ public class LoggerConsumer implements Consumer {
     private LoggerFileWriter loggerWriter;
 
     /**
-     * 创建指定配置信息的 LoggerConsumer
+     * init LoggerConsumer with config
      *
      * @param config LoggerConsumer.Config instance.
      */
     public LoggerConsumer(final Config config) {
         if (config.logDirectory == null || config.logDirectory.length() == 0) {
-            throw new RuntimeException("指定的目录路径不能为空！");
+            throw new RuntimeException("directory for file is not be empty!");
         }
         TALogger.print("LogConsumer Model,LogDirectory="+config.logDirectory);
         File dir = new File(config.logDirectory);
@@ -152,7 +152,7 @@ public class LoggerConsumer implements Consumer {
             dir.mkdirs();
         }
         if (!dir.isDirectory()) {
-            throw new RuntimeException("指定的路径必须是个目录：" + config.logDirectory);
+            throw new RuntimeException("path of file is not directory" + config.logDirectory);
         }
         String fileNamePrefix = config.fileNamePrefix == null ? config.logDirectory + File.separator : config.logDirectory + File.separator + config.fileNamePrefix + ".";
         this.fileName = fileNamePrefix + "log.";
@@ -182,19 +182,19 @@ public class LoggerConsumer implements Consumer {
     }
 
     /**
-     * 创建指定日志存放目录的 LoggerConsumer. 单个日志文件大小默认为 1G.
+     * init LoggerConsumer
      *
-     * @param logDirectory 日志存放目录
+     * @param logDirectory directory of file
      */
     public LoggerConsumer(final String logDirectory) {
         this(new Config(logDirectory));
     }
 
     /**
-     * 创建指定日志存放目录的 LoggerConsumer, 并指定单个日志文件大小.
+     * init LoggerConsumer
      *
-     * @param logDirectory 日志目录
-     * @param fileSize     单个日志文件大小限制，单位 MB
+     * @param logDirectory directory of file
+     * @param fileSize     max size of single log file (MByte), default infinite 
      */
     public LoggerConsumer(final String logDirectory, int fileSize) {
         this(new Config(logDirectory, fileSize));

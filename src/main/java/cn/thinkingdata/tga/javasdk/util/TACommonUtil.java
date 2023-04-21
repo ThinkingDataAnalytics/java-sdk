@@ -15,9 +15,9 @@ public class TACommonUtil {
         }
     }
     /**
-     * 判断value是否为空,如果是空，抛出异常
-     * @param value 需要判断的数据
-     * @param exceptionMsg 异常抛出时，提升的异常信息
+     * is value empty or not
+     * @param value data
+     * @param exceptionMsg exception
      * */
     public static  void throwEmptyException (String value,String exceptionMsg) throws InvalidArgumentException {
         if(TextUtils.isEmpty(value))

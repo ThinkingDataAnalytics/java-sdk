@@ -6,9 +6,9 @@ import java.util.Map;
 import static cn.thinkingdata.tga.javasdk.TAConstData.*;
 public class TAPropertyUtil {
     /**
-     * 判断properties是否符合要求，默认只检测key,requireValueType传入null即可
-     * @param properties 需要检测的properties
-     * @param type 数据类型
+     * check properties
+     * @param properties properties
+     * @param type event type
      * */
     public static  void assertProperties(final Map<String, Object> properties,final DataType type) throws InvalidArgumentException {
         if (properties.size() == 0) {
@@ -32,8 +32,8 @@ public class TAPropertyUtil {
         }
     }
     /**
-     * 判断属性key是否满足要求
-     * @param key 属性key的值
+     * check property name
+     * @param key key
      * */
     public static boolean isValidKey(String key)
     {
@@ -45,9 +45,9 @@ public class TAPropertyUtil {
     }
 
     /**
-     * 属性组合，按照sourceProperties顺序进行覆盖，排在最后面的优先级最高
-     * @param desProperties 组合的目标属性实体
-     * @param sourceProperties 即将组合的属性实体
+     * combine properties by sort. The latter has the highest priority
+     * @param desProperties target
+     * @param sourceProperties source
      * */
     @SafeVarargs
     public static void mergeProperties(Map<String,Object> desProperties,Map<String,Object> ... sourceProperties) throws InvalidArgumentException {
@@ -60,10 +60,10 @@ public class TAPropertyUtil {
         }
     }
     /**
-     * 某些特殊的属性，数据体内部会做一些调整
-     * @param data 用户属性或者事件构建的data
-     * @param properties 用户或者事件属性
-     * @param propertyKeys 某些特殊的属性key
+     * Move special properties
+     * @param data target
+     * @param properties source
+     * @param propertyKeys properties key
      * */
     public  static  void moveProperty(Map<String,Object> data,Map<String,Object> properties,String... propertyKeys)
     {

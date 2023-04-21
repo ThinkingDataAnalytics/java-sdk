@@ -1,4 +1,4 @@
-package cn.thinkingdata.tga.javasdk.test;
+package cn.thinkingdata.tga.javasdk.test.functionTest;
 
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
@@ -6,7 +6,7 @@ import com.alibaba.fastjson.annotation.JSONField;
 import java.util.Date;
 import java.util.Map;
 
-public class TaDataDo {
+public class TemporaryEvent {
     @JSONField(name = "#app_id")
     protected String appId = null;
     @JSONField(name = "#account_id")
@@ -139,11 +139,11 @@ public class TaDataDo {
         this.propertyObj = propertyObj;
     }
 
-    public  TaDataDo(Map<String,Object> mapData)
+    public TemporaryEvent(Map<String,Object> mapData)
     {
 
     }
-    public  TaDataDo(JSONObject data)
+    public TemporaryEvent(JSONObject data)
     {
         this.appId = data.getString("#app_id");
         this.accountId = data.getString("#account_id");
