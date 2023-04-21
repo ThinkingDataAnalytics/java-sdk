@@ -1,95 +1,29 @@
-**2.0.4** (2022/05/27)  
-- 优化代码，提升稳定性;
+### v2.1.2-beta.2
+**Date:** 2023/04/20
 
-**2.0.3** (2022/05/23)
-- 放开对某些字段名的限制
+**Notes:**
 
-**2.0.2** (2022/05/10)  
-- 修复 user_uniq_append 的type类型错误; 
-- 移除 AsyncBatchConsumer;
+* Tidy test case
 
-**2.0.1** (2022/05/06)  
-- 优化设置动态公共属性方法 setDynamicSuperPropertiesTracker;  
+### v2.1.1
+**Date:** 2022/11/15
 
-**2.0.0** (2022/04/29)  
-- 支持动态公共属性设置 dynamicSuperProperties  
-- 支持去重用户属性追加 user_unique_append  
-- 支持数据批量异步上报 AsyncBatchConsumer  
-- 支持首次事件上报     track_first
+**Notes:**
 
-**1.9.1** (2021/12/20)
-- 修复连接池的连接关闭的问题
+* Add debug model
 
-**1.9.0** (2021/12/03)
-- 增加支持上传object和object list数据
+### v2.1.0
+**Date:** 2022/08/08
 
-**1.8.2** (2021/08/31)
-- 修复一处链接异常关闭的错误
+**Notes:**
 
-**1.8.1** (2021/06/17)
-- 更新httpclient版本
-- 增加异常日志
+* In LoggerConsumer and BatchConsumer mode, the correctness of attributes is not checked by default
+* Added log switch
+* Optimize some codes
 
-**1.8.0** (2021/03/22)
-- 新增缓存池，用于存储因网络原因发送的数据，在后续发送时重试
-- LoggerConsumer增加支持#app_id属性
+### v2.0.4
+**Date:** 2022/05/27
 
-**1.7.0** (2020/11/26)
-- 新增定时flush功能
-- 新增LoggerConsumer自动创建目录功能
+**Notes:**
 
-**1.6.0** (2020/08/25)
-- 新增track_update接口，支持可更新事件
-- 新增track_overwrite接口，支持可重写事件
-- 支持LoggerConsumer前缀名配置
-
-**1.5.3** (2020/07/08)
-- 修复 v1.5.2 找不到 fastjson 依赖问题
-
-**1.5.2** (2020/07/07)
-- fastjson版本号1.2.44变更到1.2.71，修复用户使用反序列化漏洞
-- 修复BatchConsumer可能内存泄漏的问题
-
-**1.5.1** (2020/04/21)
-- 去除 #time 类型拦截
-
-**1.5.0** (2020/02/10)
-- 数据类型支持list类型
-- 新增 user_append 接口，支持用户的数组类型的属性追加
-
-**1.4.0** (2020/01/03)
-- 新增 user_unset 接口，支持删除用户属性
-- BatchConsumer 性能优化：支持配置压缩模式；移除 Base64 编码
-- DebugConsumer 优化: 在服务端对数据进行更完备准确地校验
-
-**1.3.1** (2019/09/26)
-- 去除 LoggerConsumer 默认文件大小 1G 上限. 用户可自行配置按天，小时，大小切分
-- ExampleSDK 案例优化
-
-**1.3.0** (2019/09/21)
-- 去除 KafkaProduce, 避免过多的依赖
-
-**v1.2.0** (2019/09/12)
-- 新增 DebugConsumer, 便于调试接口 
-- 优化 LoggerConsumer, 支持按小时切分日志文件
-- 优化代码，提升稳定性
-
-**v1.1.17** (2019/08/23)
-- 优化数据上报异常时异常打印提示
-- BatchConsumer 请求异常返回码提醒
-
-**v1.1.16** (2019/05/30) 
-- 解决 LoggerConsumer 多线程下会出现关闭不 flush 数据的 bug
-- 解决 BatchConsumer 多线程下数据重复的情况
-
-**v1.1.15** (2019/04/28)
-- 修复 Java 1.7 兼容性 bug
-- LoggerConsumer 不根据时间间隔落盘
-
-**v1.1.14** (2019/04/25)
-- 兼容 Java 1.7
-- 优化了loggerConsumer的上报机制
-
-**v1.1.13** (2019/04/11)
-- 优化数据上报的性能及稳定性
-- 调整了Consumer 的默认参数
+* Update to concurrentHasMap
