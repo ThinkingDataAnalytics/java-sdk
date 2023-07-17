@@ -5,6 +5,7 @@ import cn.thinkingdata.tga.javasdk.util.TACommonUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializeConfig;
+import com.alibaba.fastjson.serializer.SerializeFilter;
 
 import java.util.Map;
 
@@ -19,7 +20,8 @@ public class TemporaryConsumer implements Consumer {
 
     @Override
     public void add(Map<String, Object> message) {
-        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, null, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
+        SerializeFilter[] filters = {};
+        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
         JSONObject data = JSON.parseObject(formatMsg);
         this.taData = new TemporaryEvent(data);
     }
