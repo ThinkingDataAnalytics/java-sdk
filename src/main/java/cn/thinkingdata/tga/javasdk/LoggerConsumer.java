@@ -7,7 +7,6 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.serializer.SerializeConfig;
 import com.alibaba.fastjson.serializer.SerializeFilter;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -203,7 +202,8 @@ public class LoggerConsumer implements Consumer {
     @Override
     public synchronized void add(Map<String, Object> message) {
         try {
-            String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, null, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
+            SerializeFilter[] filters = {};
+            String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TACommonUtil.fastJsonSerializerFeature());
             messageBuffer.append(formatMsg);
             TALogger.print("collect data="+formatMsg);
             messageBuffer.append("\n");

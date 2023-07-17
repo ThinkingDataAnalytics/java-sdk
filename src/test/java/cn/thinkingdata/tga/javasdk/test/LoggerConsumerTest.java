@@ -25,7 +25,7 @@ public class LoggerConsumerTest {
         try {
             Map<String, Object> properties = new HashMap<String, Object>();
             properties.put("name", "ta");
-            taSDK.track("null", null, "java_event", properties);
+            taSDK.track("123", null, "java_event", properties);
             taSDK.flush();
         } catch (InvalidArgumentException e) {
             e.printStackTrace();
