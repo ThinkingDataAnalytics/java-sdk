@@ -1,3 +1,10 @@
+### v2.1.2
+**Date:** 2023/09/19
+
+**Notes:**
+
+* Set SDK to official version
+
 ### v2.1.2-beta.3
 **Date:** 2023/07/17
 
