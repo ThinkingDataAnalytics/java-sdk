@@ -1,3 +1,10 @@
+### v3.0.0-beta.1
+**Date:** 2023/09/20
+
+**Notes:**
+
+* Using the new API
+
 ### v2.1.2
 **Date:** 2023/09/19
 
