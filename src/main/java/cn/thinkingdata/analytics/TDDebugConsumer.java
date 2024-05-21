@@ -5,6 +5,7 @@ import cn.thinkingdata.analytics.request.TDDebugRequest;
 import cn.thinkingdata.analytics.util.TDCommonUtil;
 import cn.thinkingdata.analytics.util.TDLogger;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONValidator;
 import com.alibaba.fastjson.serializer.SerializeConfig;
 import com.alibaba.fastjson.serializer.SerializeFilter;
 
@@ -76,10 +77,16 @@ public class TDDebugConsumer implements ITDConsumer {
     @Override
     public void add(Map<String, Object> message) {
         SerializeFilter[] filters = {};
-        String data = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
-        TDLogger.println("collect data="+data);
+        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
+        if (JSONValidator.from(formatMsg).validate()) {
+            TDLogger.println("collect data=" + formatMsg);
+        } else {
+            String errorMsg = "The provided string is not a valid JSON.";
+            TDLogger.println(errorMsg);
+            throw new RuntimeException(errorMsg);
+        }
         try {
-            httpService.send(data, 1);
+            httpService.send(formatMsg, 1);
         } catch (Exception e) {
             TDLogger.println(e.getLocalizedMessage());
             throw new RuntimeException(e);

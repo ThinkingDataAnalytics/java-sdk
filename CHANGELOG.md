@@ -1,3 +1,10 @@
+### v3.0.1
+**Date:** 2024/05/21
+
+**Notes:**
+
+* The debug mode supports data format verification
+
 ### v3.0.0
 **Date:** 2023/11/29
 
