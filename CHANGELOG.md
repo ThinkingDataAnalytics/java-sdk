@@ -1,3 +1,11 @@
+### v3.0.2-beta.1
+**Date:** 2024/06/06
+
+**Notes:**
+
+* The minimum supported JDK is 8
+* Upgrade to fastjson2
+
 ### v3.0.1
 **Date:** 2024/05/21
 

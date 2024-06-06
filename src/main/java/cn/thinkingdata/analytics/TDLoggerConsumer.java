@@ -3,10 +3,8 @@ package cn.thinkingdata.analytics;
 import cn.thinkingdata.analytics.inter.ITDConsumer;
 import cn.thinkingdata.analytics.util.TDCommonUtil;
 import cn.thinkingdata.analytics.util.TDLogger;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONException;
-import com.alibaba.fastjson.serializer.SerializeConfig;
-import com.alibaba.fastjson.serializer.SerializeFilter;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -216,8 +214,7 @@ public class TDLoggerConsumer implements ITDConsumer {
             return;
         }
         try {
-            SerializeFilter[] filters = {};
-            String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
+            String formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
             messageBuffer.append(formatMsg);
             messageBuffer.append("\n");
             TDLogger.println("Enqueue data: " + formatMsg);

@@ -1,7 +1,7 @@
 package cn.thinkingdata.analytics.util;
 
 import cn.thinkingdata.analytics.exception.InvalidArgumentException;
-import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.alibaba.fastjson2.JSONWriter;
 import org.apache.http.util.TextUtils;
 
 import java.util.Map;
@@ -24,12 +24,10 @@ public class TDCommonUtil {
             throw new InvalidArgumentException(exceptionMsg);
     }
 
-    public static int fastJsonSerializerFeature() {
-        int features = 0;
-        features = features | SerializerFeature.QuoteFieldNames.getMask();
-        features |= SerializerFeature.SkipTransientField.getMask();
-        features |= SerializerFeature.WriteEnumUsingName.getMask();
-        features |= SerializerFeature.SortField.getMask();
-        return features;
+    public static JSONWriter.Feature[] fastJsonSerializerFeature() {
+        return new JSONWriter.Feature[]{
+                JSONWriter.Feature.WriteEnumsUsingName,
+                JSONWriter.Feature.MapSortField
+        };
     }
 }

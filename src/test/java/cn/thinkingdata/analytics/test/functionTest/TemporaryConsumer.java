@@ -2,10 +2,8 @@ package cn.thinkingdata.analytics.test.functionTest;
 
 import cn.thinkingdata.analytics.inter.ITDConsumer;
 import cn.thinkingdata.analytics.util.TDCommonUtil;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.serializer.SerializeConfig;
-import com.alibaba.fastjson.serializer.SerializeFilter;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 
 import java.util.Map;
 
@@ -20,8 +18,7 @@ public class TemporaryConsumer implements ITDConsumer {
 
     @Override
     public void add(Map<String, Object> message) {
-        SerializeFilter[] filters = {};
-        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
+        String formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
         JSONObject data = JSON.parseObject(formatMsg);
         this.taData = new TemporaryEvent(data);
     }

@@ -4,10 +4,8 @@ import cn.thinkingdata.analytics.inter.ITDConsumer;
 import cn.thinkingdata.analytics.request.TDDebugRequest;
 import cn.thinkingdata.analytics.util.TDCommonUtil;
 import cn.thinkingdata.analytics.util.TDLogger;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONValidator;
-import com.alibaba.fastjson.serializer.SerializeConfig;
-import com.alibaba.fastjson.serializer.SerializeFilter;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONValidator;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -76,8 +74,7 @@ public class TDDebugConsumer implements ITDConsumer {
 
     @Override
     public void add(Map<String, Object> message) {
-        SerializeFilter[] filters = {};
-        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
+        String formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
         if (JSONValidator.from(formatMsg).validate()) {
             TDLogger.println("collect data=" + formatMsg);
         } else {

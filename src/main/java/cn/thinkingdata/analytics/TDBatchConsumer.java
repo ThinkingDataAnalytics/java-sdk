@@ -6,9 +6,7 @@ import cn.thinkingdata.analytics.inter.ITDConsumer;
 import cn.thinkingdata.analytics.request.TDBatchRequest;
 import cn.thinkingdata.analytics.util.TDCommonUtil;
 import cn.thinkingdata.analytics.util.TDLogger;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.serializer.SerializeConfig;
-import com.alibaba.fastjson.serializer.SerializeFilter;
+import com.alibaba.fastjson2.JSON;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -236,8 +234,7 @@ public class TDBatchConsumer implements ITDConsumer {
 
     @Override
     public void add(Map<String, Object> message) {
-        SerializeFilter[] filters = {};
-        String formatMsg = JSON.toJSONString(message, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
+        String formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
         TDLogger.println("collect data="+formatMsg);
         synchronized (messageLock) {
             messageChannel.add(message);
@@ -279,10 +276,11 @@ public class TDBatchConsumer implements ITDConsumer {
             List<Map<String, Object>> buffer = cacheBuffer.getFirst();
 
             try {
-                SerializeFilter[] filters = {};
-                String data = JSON.toJSONString(buffer, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
-                TDLogger.println("flush data="+data);
-                httpSending(data, buffer.size());
+                String formatMsg = com.alibaba.fastjson2.JSON.toJSONString(buffer, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
+//                SerializeFilter[] filters = {};
+//                String data = JSON.toJSONString(buffer, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
+                TDLogger.println("flush data="+formatMsg);
+                httpSending(formatMsg, buffer.size());
                 cacheBuffer.removeFirst();
             } catch (NeedRetryException e) {
                 TDLogger.println(e.getLocalizedMessage());

@@ -19,10 +19,14 @@ public class PerformanceTest {
         }
         long time1 = System.currentTimeMillis();
 
-        Date date = new Date();
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-
         // add track ...
+        try {
+            for (int i = 0; i < 1; i++) {
+                ta.track("a", "b", "eventName", map);
+            }
+        } catch (Exception e) {
+            System.out.println(e.getLocalizedMessage());
+        }
 
         long time2 = System.currentTimeMillis();
         System.out.println("time="+(time2-time1));
