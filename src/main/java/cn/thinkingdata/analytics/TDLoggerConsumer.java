@@ -45,7 +45,8 @@ public class TDLoggerConsumer implements ITDConsumer {
         int interval = 0;                               // auto flush interval (second)
         int fileSize = 0;                               // max size of single log file (MByte)
         int bufferSize = 8192;                          // buffer size (unit: byte)
-        boolean autoFlush = false;                      // is enable auto flush or not
+        boolean autoFlush = false;                      // is enabled auto flush or not
+        boolean isThrowException = false;               // is enabled throw exception
 
 
         /**
@@ -143,6 +144,7 @@ public class TDLoggerConsumer implements ITDConsumer {
     private LoggerFileWriter loggerWriter;
 
     private boolean isClose;
+    private final boolean isThrowException;
 
     /**
      * init LoggerConsumer with config
@@ -166,6 +168,7 @@ public class TDLoggerConsumer implements ITDConsumer {
         this.fileSize = config.fileSize;
         this.lockFileName = config.lockFileName;
         this.bufferSize = config.bufferSize;
+        this.isThrowException = config.isThrowException;
 
         final String dataFormat = config.rotateMode == RotateMode.HOURLY ? "yyyy-MM-dd-HH" : "yyyy-MM-dd";
         df = new ThreadLocal<SimpleDateFormat>() {
@@ -242,13 +245,23 @@ public class TDLoggerConsumer implements ITDConsumer {
             try {
                 loggerWriter = LoggerFileWriter.getInstance(fileName, lockFileName);
             } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
+                TDLogger.println("Error: " + e);
+                if (isThrowException) {
+                    throw new RuntimeException(e);
+                }
             }
         }
 
-        if (loggerWriter.write(messageBuffer)) {
-            TDLogger.print("flush data: " + messageBuffer);
-            messageBuffer.setLength(0);
+        try {
+            if (loggerWriter.write(messageBuffer)) {
+                TDLogger.print("flush data: " + messageBuffer);
+                messageBuffer.setLength(0);
+            }
+        } catch (Exception e) {
+            TDLogger.println("Error: " + e);
+            if (isThrowException) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

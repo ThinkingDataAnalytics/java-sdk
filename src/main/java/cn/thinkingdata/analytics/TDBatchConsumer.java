@@ -39,7 +39,7 @@ public class TDBatchConsumer implements ITDConsumer {
      * @throws URISyntaxException exception
      */
     public TDBatchConsumer(String serverUrl, String appId) throws URISyntaxException {
-        this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, true);
+        this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, false);
     }
 
     /**
@@ -80,7 +80,7 @@ public class TDBatchConsumer implements ITDConsumer {
      */
     @Deprecated
     protected TDBatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval) throws URISyntaxException {
-        this(serverUrl, appId, batchSize, timeout, autoFlush, interval, "gzip", 0, true);
+        this(serverUrl, appId, batchSize, timeout, autoFlush, interval, "gzip", 0, false);
     }
 
     /**
@@ -97,7 +97,7 @@ public class TDBatchConsumer implements ITDConsumer {
      */
     @Deprecated
     protected TDBatchConsumer(String serverUrl, String appId, int batchSize, int timeout, boolean autoFlush, int interval, String compress) throws URISyntaxException {
-        this(serverUrl, appId, batchSize, timeout, autoFlush, interval, compress, 0, true);
+        this(serverUrl, appId, batchSize, timeout, autoFlush, interval, compress, 0, false);
     }
 
     /**
@@ -170,7 +170,7 @@ public class TDBatchConsumer implements ITDConsumer {
         /**
          * Is throw exception
          */
-        protected boolean isThrowException = true;
+        protected boolean isThrowException = false;
 
         /**
          * Construct batch consumer config
@@ -249,7 +249,10 @@ public class TDBatchConsumer implements ITDConsumer {
         while (!cacheBuffer.isEmpty() || !messageChannel.isEmpty()) {
             try {
                 flushOnce();
-            } catch (IllegalDataException ignore) {
+            } catch (Exception e) {
+                if (isThrowException) {
+                    throw e;
+                }
             }
         }
     }
@@ -277,8 +280,6 @@ public class TDBatchConsumer implements ITDConsumer {
 
             try {
                 String formatMsg = com.alibaba.fastjson2.JSON.toJSONString(buffer, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
-//                SerializeFilter[] filters = {};
-//                String data = JSON.toJSONString(buffer, SerializeConfig.globalInstance, filters, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
                 TDLogger.println("flush data="+formatMsg);
                 httpSending(formatMsg, buffer.size());
                 cacheBuffer.removeFirst();
@@ -315,7 +316,10 @@ public class TDBatchConsumer implements ITDConsumer {
         if (autoFlushTimer != null) {
             try {
                 autoFlushTimer.cancel();
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                if (isThrowException) {
+                    throw e;
+                }
             }
         }
         flush();

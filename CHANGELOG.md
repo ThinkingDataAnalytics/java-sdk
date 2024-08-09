@@ -1,3 +1,10 @@
+### v3.0.2-beta.2
+**Date:** 2024/08/08
+
+**Notes:**
+
+* Improve SDK stability
+
 ### v3.0.2-beta.1
 **Date:** 2024/06/06
 

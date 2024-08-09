@@ -311,8 +311,9 @@ public class TDAnalytics implements ITDAnalytics {
 
     private void add(String distinctId, String accountId, TDConstData.DataType type, String eventName, String eventId, Map<String, Object> properties)
             throws InvalidArgumentException {
-        if(isStrictModel && TextUtils.isEmpty(accountId) && TextUtils.isEmpty(distinctId))
+        if (isStrictModel && TextUtils.isEmpty(accountId) && TextUtils.isEmpty(distinctId)) {
             throw new InvalidArgumentException("accountId or distinctId must be provided.");
+        }
         Map<String, Object> copyProperties =  properties!=null ? new ConcurrentHashMap<>(properties) : new ConcurrentHashMap<String, Object>();
         Map<String, Object> desProperties =  new HashMap<>();
         Map<String, Object> event = new HashMap<>();
@@ -328,25 +329,30 @@ public class TDAnalytics implements ITDAnalytics {
         // Move special properties
         TDPropertyUtil.moveProperty(event,copyProperties,"#uuid","#time","#ip","#app_id","#first_check_id","#transaction_property","#import_tool_id");
         if (type.getType().contains("track")) {
-            if(isStrictModel)
+            if (isStrictModel) {
                 TDCommonUtil.throwEmptyException(eventName,"The event name must be provided.");
-            if (type.getType().contains("track_"))
-            {
-                if(isStrictModel)
+            }
+            if (type.getType().contains("track_")) {
+                if (isStrictModel) {
                     TDCommonUtil.throwEmptyException(eventId,"The event id must be provided.");
+                }
                 TDCommonUtil.buildData(event,"#event_id", eventId);
             }
             TDPropertyUtil.mergeProperties(desProperties,superProperties,dynamicSuperProperties!=null ? dynamicSuperProperties.getDynamicSuperProperties():null,copyProperties);
             event.put("#event_name", eventName);
             desProperties.put("#lib", LIB_NAME);
             desProperties.put("#lib_version", LIB_VERSION);
-        }else
-        {
+        } else {
             TDPropertyUtil.mergeProperties(desProperties,copyProperties);
         }
-        if(isStrictModel)
+        if (isStrictModel) {
             TDPropertyUtil.assertProperties(desProperties,type);
+        }
         event.put("properties",desProperties);
-        this.consumer.add(event);
+        try {
+            this.consumer.add(event);
+        } catch (Exception e) {
+            throw new InvalidArgumentException(e);
+        }
     }
 }
