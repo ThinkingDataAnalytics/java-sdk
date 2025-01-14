@@ -24,18 +24,16 @@ abstract  public class TDBaseRequest implements Closeable {
         return connectTimeout;
     }
     private Integer connectTimeout = null;
-    public static CloseableHttpClient getHttpClient() {
+    public CloseableHttpClient getHttpClient() {
         return httpClient;
     }
-    private static CloseableHttpClient httpClient;
+    private CloseableHttpClient httpClient;
     public TDBaseRequest(URI server_uri, String appId, Integer timeout) {
         this(server_uri, appId);
         this.connectTimeout = timeout;
     }
     public TDBaseRequest(URI server_uri, String appId) {
-        if (httpClient == null) {
-            httpClient = TDHttpRequestClient.getHttpClient();
-        }
+        httpClient = TDHttpRequestClient.getHttpClient();
         this.serverUri = server_uri;
         this.appId = appId;
     }
