@@ -27,9 +27,11 @@ public class TDBatchConsumer implements ITDConsumer {
     private final static int MAX_BATCH_SIZE = 1000;      // max limit of flush event count 
     private final Object messageLock = new Object();
     private final Object cacheLock = new Object();
+    private final Object sdkCloseLock = new Object();
     private List<Map<String, Object>> messageChannel;
     private final LinkedList<List<Map<String, Object>>> cacheBuffer = new LinkedList<List<Map<String, Object>>>();
     private final TDBatchRequest httpService;
+    private boolean isClose;
 
     /**
      * Construct BatchConsumer
@@ -234,6 +236,12 @@ public class TDBatchConsumer implements ITDConsumer {
 
     @Override
     public void add(Map<String, Object> message) {
+        synchronized (sdkCloseLock) {
+            if (isClose) {
+                TDLogger.println("SDK is already closed");
+                return;
+            }
+        }
         String formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
         TDLogger.println("collect data="+formatMsg);
         synchronized (messageLock) {
@@ -246,6 +254,12 @@ public class TDBatchConsumer implements ITDConsumer {
 
     @Override
     public void flush() {
+        synchronized (sdkCloseLock) {
+            if (isClose) {
+                TDLogger.println("SDK is already closed");
+                return;
+            }
+        }
         while (!cacheBuffer.isEmpty() || !messageChannel.isEmpty()) {
             try {
                 flushOnce();
@@ -264,7 +278,12 @@ public class TDBatchConsumer implements ITDConsumer {
         if (messageChannel.isEmpty() && cacheBuffer.isEmpty()) {
             return;
         }
-
+        synchronized (sdkCloseLock) {
+            if (isClose) {
+                TDLogger.println("SDK is already closed");
+                return;
+            }
+        }
         synchronized (cacheLock) {
             synchronized (messageLock) {
                 if (messageChannel.isEmpty() && cacheBuffer.isEmpty()) {
@@ -288,7 +307,7 @@ public class TDBatchConsumer implements ITDConsumer {
                 if (isThrowException) {
                     throw e;
                 }
-            } catch (IllegalDataException e) {
+            } catch (IllegalDataException | NullPointerException e) {
                 TDLogger.println(e.getLocalizedMessage());
                 cacheBuffer.removeFirst();
                 if (isThrowException) {
@@ -325,6 +344,9 @@ public class TDBatchConsumer implements ITDConsumer {
         flush();
         if (httpService != null) {
             httpService.close();
+        }
+        synchronized (sdkCloseLock) {
+            isClose = true;
         }
     }
 }
