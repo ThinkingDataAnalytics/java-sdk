@@ -1,3 +1,18 @@
+### v3.0.4-beta.1
+**Date:** 2025/12/11
+
+**Notes:**
+
+* Upgrade to fastjson2
+* Unsupported compress: lz4, lzo
+
+### v3.0.2
+**Date:** 2025/01/15
+
+**Notes:**
+
+* Improve SDK stability
+
 ### v3.0.2-beta.2
 **Date:** 2024/08/08
 

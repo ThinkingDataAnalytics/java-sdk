@@ -198,7 +198,14 @@ public class TDBatchConsumer implements ITDConsumer {
          * @param compress compress type
          */
         public void setCompress(String compress) {
-            this.compress = compress;
+            if ("none".equalsIgnoreCase(compress)) {
+                this.compress = "none";
+            } else if ("gzip".equalsIgnoreCase(compress)) {
+                this.compress = "gzip";
+            } else {
+                TDLogger.println("Warning: compress is only supported for gzip");
+                this.compress = "gzip";
+            }
         }
 
         /**

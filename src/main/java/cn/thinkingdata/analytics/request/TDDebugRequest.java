@@ -2,7 +2,7 @@ package cn.thinkingdata.analytics.request;
 
 import cn.thinkingdata.analytics.exception.IllegalDataException;
 import cn.thinkingdata.analytics.util.TDLogger;
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSONObject;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;

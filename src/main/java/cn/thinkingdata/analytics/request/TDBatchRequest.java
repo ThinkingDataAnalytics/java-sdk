@@ -3,14 +3,7 @@ package cn.thinkingdata.analytics.request;
 import cn.thinkingdata.analytics.exception.IllegalDataException;
 import cn.thinkingdata.analytics.exception.NeedRetryException;
 import cn.thinkingdata.analytics.util.TDLogger;
-import com.alibaba.fastjson.JSONObject;
-import net.jpountz.lz4.LZ4BlockOutputStream;
-import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Factory;
-import org.anarres.lzo.LzoAlgorithm;
-import org.anarres.lzo.LzoCompressor;
-import org.anarres.lzo.LzoLibrary;
-import org.anarres.lzo.LzoOutputStream;
+import com.alibaba.fastjson2.JSONObject;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -22,7 +15,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.GZIPOutputStream;
 public class TDBatchRequest extends TDBaseRequest {
-
     public String getCompress() {
         return compress;
     }
@@ -66,16 +58,12 @@ public class TDBatchRequest extends TDBaseRequest {
     @Override
     HttpEntity getHttpEntity(String data) {
         try {
-            byte[] dataCompressed;
+            byte[] dataCompressed = new byte[0];
             byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
-            if ("lzo".equalsIgnoreCase(this.compress)) {
-                dataCompressed = lzoCompress(dataBytes);
-            } else if ("lz4".equalsIgnoreCase(this.compress)) {
-                dataCompressed = lz4Compress(dataBytes);
+            if ("gzip".equalsIgnoreCase(this.compress)) {
+                dataCompressed = gzipCompress(dataBytes);
             } else if ("none".equalsIgnoreCase(this.compress)) {
                 dataCompressed = dataBytes;
-            } else {
-                dataCompressed = gzipCompress(dataBytes);
             }
             return new ByteArrayEntity(dataCompressed);
         } catch (IOException e) {
@@ -100,17 +88,6 @@ public class TDBatchRequest extends TDBaseRequest {
         }
     }
 
-    private static byte[] lz4Compress(byte[] srcBytes) throws IOException {
-        LZ4Factory factory = LZ4Factory.fastestInstance();
-        ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
-        LZ4Compressor compressor = factory.fastCompressor();
-        LZ4BlockOutputStream compressedOutput = new LZ4BlockOutputStream(
-                byteOutput, 2048, compressor);
-        compressedOutput.write(srcBytes);
-        compressedOutput.close();
-        return byteOutput.toByteArray();
-    }
-
     private static byte[] gzipCompress(byte[] srcBytes) throws IOException {
         GZIPOutputStream gzipOut = null;
         try {
@@ -124,16 +101,5 @@ public class TDBatchRequest extends TDBaseRequest {
                 gzipOut.close();
             }
         }
-
     }
-    private static byte[] lzoCompress(byte[] srcBytes) throws IOException {
-        LzoCompressor compressor = LzoLibrary.getInstance().newCompressor(
-                LzoAlgorithm.LZO1X, null);
-        ByteArrayOutputStream os = new ByteArrayOutputStream();
-        LzoOutputStream cs = new LzoOutputStream(os, compressor);
-        cs.write(srcBytes);
-        cs.close();
-        return os.toByteArray();
-    }
-
 }
