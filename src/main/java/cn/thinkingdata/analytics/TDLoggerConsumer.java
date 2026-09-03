@@ -130,6 +130,15 @@ public class TDLoggerConsumer implements ITDConsumer {
         public void setInterval(int interval) {
             this.interval = interval;
         }
+
+        /**
+         * Whether file operation failures should be thrown to the caller.
+         *
+         * @param isThrowException enable or not
+         */
+        public void setThrowException(boolean isThrowException) {
+            this.isThrowException = isThrowException;
+        }
     }
 
     private final String fileName;
@@ -249,6 +258,7 @@ public class TDLoggerConsumer implements ITDConsumer {
                 if (isThrowException) {
                     throw new RuntimeException(e);
                 }
+                return;
             }
         }
 
@@ -372,4 +382,3 @@ public class TDLoggerConsumer implements ITDConsumer {
         }
     }
 }
-

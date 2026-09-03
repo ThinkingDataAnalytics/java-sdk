@@ -49,10 +49,19 @@ abstract  public class TDBaseRequest implements Closeable {
         httpPost.addHeader("TA-Integration-Count", String.valueOf(dataSize));
 
         if (this.getConnectTimeout() != null) {
-            RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(this.getConnectTimeout() + 5000).setConnectTimeout(this.getConnectTimeout()).build();
-            httpPost.setConfig(requestConfig);
+            httpPost.setConfig(createRequestConfig());
         }
         sendRequest(httpPost);
+    }
+
+    private RequestConfig createRequestConfig() {
+        int timeout = this.getConnectTimeout();
+        int socketTimeout = timeout > Integer.MAX_VALUE - 5000 ? Integer.MAX_VALUE : timeout + 5000;
+        return RequestConfig.custom()
+                .setConnectTimeout(timeout)
+                .setConnectionRequestTimeout(timeout)
+                .setSocketTimeout(socketTimeout)
+                .build();
     }
     abstract void sendRequest(HttpPost httpPost);
     abstract HttpEntity getHttpEntity(final String data);
@@ -63,5 +72,4 @@ abstract  public class TDBaseRequest implements Closeable {
     }
 
 }
-
 

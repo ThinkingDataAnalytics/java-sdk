@@ -25,13 +25,19 @@ public class TDBatchConsumer implements ITDConsumer {
     private Timer autoFlushTimer;
 
     private final static int MAX_BATCH_SIZE = 1000;      // max limit of flush event count 
-    private final Object messageLock = new Object();
-    private final Object cacheLock = new Object();
-    private final Object sdkCloseLock = new Object();
+    static final int DEFAULT_TIMEOUT = 30000;
+    private final Object stateLock = new Object();
+    private final Object sendLock = new Object();
     private List<Map<String, Object>> messageChannel;
     private final LinkedList<List<Map<String, Object>>> cacheBuffer = new LinkedList<List<Map<String, Object>>>();
     private final TDBatchRequest httpService;
-    private boolean isClose;
+    private LifecycleState lifecycleState = LifecycleState.OPEN;
+
+    private enum LifecycleState {
+        OPEN,
+        CLOSING,
+        CLOSED
+    }
 
     /**
      * Construct BatchConsumer
@@ -41,7 +47,7 @@ public class TDBatchConsumer implements ITDConsumer {
      * @throws URISyntaxException exception
      */
     public TDBatchConsumer(String serverUrl, String appId) throws URISyntaxException {
-        this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, false);
+        this(serverUrl, appId, 20, DEFAULT_TIMEOUT, false, 0, "gzip", 0, false);
     }
 
     /**
@@ -66,7 +72,7 @@ public class TDBatchConsumer implements ITDConsumer {
      */
     @Deprecated
     protected TDBatchConsumer(String serverUrl, String appId, boolean isThrowException) throws URISyntaxException {
-        this(serverUrl, appId, 20, 0, false, 0, "gzip", 0, isThrowException);
+        this(serverUrl, appId, 20, DEFAULT_TIMEOUT, false, 0, "gzip", 0, isThrowException);
     }
 
     /**
@@ -126,7 +132,8 @@ public class TDBatchConsumer implements ITDConsumer {
         URI uri = new URI(serverUrl);
         URI url = new URI(uri.getScheme(), uri.getAuthority(),
                 "/sync_server", uri.getQuery(), uri.getFragment());
-        this.httpService = new TDBatchRequest(url, appId, timeout);
+        int effectiveTimeout = timeout <= 0 ? DEFAULT_TIMEOUT : timeout;
+        this.httpService = new TDBatchRequest(url, appId, effectiveTimeout);
         this.httpService.setCompress(compress);
         if (autoFlush) {
             if (interval <= 0) {
@@ -160,7 +167,7 @@ public class TDBatchConsumer implements ITDConsumer {
         /**
          * Http timeout
          */
-        protected int timeout = 30000;
+        protected int timeout = DEFAULT_TIMEOUT;
         /**
          * Enable auto flush
          */
@@ -209,11 +216,12 @@ public class TDBatchConsumer implements ITDConsumer {
         }
 
         /**
-         * network timeout
-         * @param timeout millSecond
+         * Network timeout. Values less than or equal to zero use the default timeout.
+         *
+         * @param timeout timeout in milliseconds
          */
         public void setTimeout(int timeout) {
-            this.timeout = timeout;
+            this.timeout = timeout <= 0 ? DEFAULT_TIMEOUT : timeout;
         }
 
         /**
@@ -243,37 +251,53 @@ public class TDBatchConsumer implements ITDConsumer {
 
     @Override
     public void add(Map<String, Object> message) {
-        synchronized (sdkCloseLock) {
-            if (isClose) {
+        synchronized (stateLock) {
+            if (lifecycleState != LifecycleState.OPEN) {
                 TDLogger.println("SDK is already closed");
                 return;
             }
         }
         String formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
         TDLogger.println("collect data="+formatMsg);
-        synchronized (messageLock) {
+
+        boolean shouldFlush;
+        synchronized (stateLock) {
+            if (lifecycleState != LifecycleState.OPEN) {
+                TDLogger.println("SDK is already closed");
+                return;
+            }
             messageChannel.add(message);
+            shouldFlush = messageChannel.size() >= batchSize || !cacheBuffer.isEmpty();
         }
-        if (messageChannel.size() >= batchSize || !cacheBuffer.isEmpty()) {
+
+        if (shouldFlush) {
             flushOnce();
         }
     }
 
     @Override
     public void flush() {
-        synchronized (sdkCloseLock) {
-            if (isClose) {
+        synchronized (stateLock) {
+            if (lifecycleState != LifecycleState.OPEN) {
                 TDLogger.println("SDK is already closed");
                 return;
             }
         }
-        while (!cacheBuffer.isEmpty() || !messageChannel.isEmpty()) {
+        flushInternal(false);
+    }
+
+    private void flushInternal(boolean allowClosing) {
+        while (true) {
             try {
-                flushOnce();
+                if (!flushOnceInternal(allowClosing)) {
+                    return;
+                }
             } catch (Exception e) {
                 if (isThrowException) {
                     throw e;
                 }
+                TDLogger.println(e.getLocalizedMessage());
+                return;
             }
         }
     }
@@ -282,49 +306,72 @@ public class TDBatchConsumer implements ITDConsumer {
      * Flush data once.
      */
     public void flushOnce() {
-        if (messageChannel.isEmpty() && cacheBuffer.isEmpty()) {
-            return;
-        }
-        synchronized (sdkCloseLock) {
-            if (isClose) {
-                TDLogger.println("SDK is already closed");
-                return;
-            }
-        }
-        synchronized (cacheLock) {
-            synchronized (messageLock) {
+        flushOnceInternal(false);
+    }
+
+    /**
+     * Flush data once.
+     *
+     * @return {@code true} if a batch was sent or discarded and the caller may
+     * continue flushing; {@code false} if there is no data or the current batch
+     * must be retried later
+     */
+    private boolean flushOnceInternal(boolean allowClosing) {
+        synchronized (sendLock) {
+            final List<Map<String, Object>> buffer;
+            synchronized (stateLock) {
+                if (lifecycleState == LifecycleState.CLOSED
+                        || (!allowClosing && lifecycleState != LifecycleState.OPEN)) {
+                    return false;
+                }
                 if (messageChannel.isEmpty() && cacheBuffer.isEmpty()) {
-                    return;
+                    return false;
                 }
                 if (messageChannel.size() >= batchSize || cacheBuffer.isEmpty()) {
                     cacheBuffer.add(messageChannel);
                     messageChannel = new ArrayList<Map<String, Object>>();
                 }
+                buffer = cacheBuffer.getFirst();
             }
-
-            List<Map<String, Object>> buffer = cacheBuffer.getFirst();
 
             try {
                 String formatMsg = com.alibaba.fastjson2.JSON.toJSONString(buffer, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
                 TDLogger.println("flush data="+formatMsg);
                 httpSending(formatMsg, buffer.size());
-                cacheBuffer.removeFirst();
+                synchronized (stateLock) {
+                    removeBufferLocked(buffer);
+                }
+                return true;
             } catch (NeedRetryException e) {
                 TDLogger.println(e.getLocalizedMessage());
                 if (isThrowException) {
                     throw e;
                 }
+                return false;
             } catch (IllegalDataException | NullPointerException e) {
                 TDLogger.println(e.getLocalizedMessage());
-                cacheBuffer.removeFirst();
+                synchronized (stateLock) {
+                    removeBufferLocked(buffer);
+                }
                 if (isThrowException) {
                     throw e;
                 }
+                return true;
             } finally {
-                if (cacheBuffer.size() > maxCacheSize) {
-                    cacheBuffer.removeFirst();
+                synchronized (stateLock) {
+                    while (cacheBuffer.size() > maxCacheSize) {
+                        cacheBuffer.removeFirst();
+                    }
                 }
             }
+        }
+    }
+
+    private void removeBufferLocked(List<Map<String, Object>> buffer) {
+        if (!cacheBuffer.isEmpty() && cacheBuffer.getFirst() == buffer) {
+            cacheBuffer.removeFirst();
+        } else {
+            cacheBuffer.remove(buffer);
         }
     }
 
@@ -338,22 +385,34 @@ public class TDBatchConsumer implements ITDConsumer {
     }
 
     @Override
-    public void close() {
-        if (autoFlushTimer != null) {
-            try {
-                autoFlushTimer.cancel();
-            } catch (Exception e) {
-                if (isThrowException) {
-                    throw e;
+    public synchronized void close() {
+        synchronized (stateLock) {
+            if (lifecycleState == LifecycleState.CLOSED) {
+                return;
+            }
+            lifecycleState = LifecycleState.CLOSING;
+        }
+
+        try {
+            if (autoFlushTimer != null) {
+                try {
+                    autoFlushTimer.cancel();
+                } catch (Exception e) {
+                    if (isThrowException) {
+                        throw e;
+                    }
+                    TDLogger.println(e.getLocalizedMessage());
                 }
             }
-        }
-        flush();
-        if (httpService != null) {
-            httpService.close();
-        }
-        synchronized (sdkCloseLock) {
-            isClose = true;
+            flushInternal(true);
+        } finally {
+            try {
+                httpService.close();
+            } finally {
+                synchronized (stateLock) {
+                    lifecycleState = LifecycleState.CLOSED;
+                }
+            }
         }
     }
 }

@@ -118,11 +118,14 @@ public class TDAnalytics implements ITDAnalytics {
      */
     @Override
     public void trackFirst(String accountId, String distinctId, String eventName, String firstCheckId, Map<String, Object> properties) throws InvalidArgumentException {
+        Map<String, Object> eventProperties = properties == null
+                ? new HashMap<String, Object>()
+                : new HashMap<String, Object>(properties);
         if (firstCheckId != null) {
-            properties.put("#first_check_id", firstCheckId);
+            eventProperties.put("#first_check_id", firstCheckId);
         }
-        if (properties.containsKey("#first_check_id")) {
-            innerTrack(accountId, distinctId, TDConstData.DataType.TRACK, eventName, null, properties);
+        if (eventProperties.containsKey("#first_check_id")) {
+            innerTrack(accountId, distinctId, TDConstData.DataType.TRACK, eventName, null, eventProperties);
         } else {
             throw new InvalidArgumentException("#first_check_id key must set");
         }
@@ -165,12 +168,19 @@ public class TDAnalytics implements ITDAnalytics {
      */
     @Override
     public void setSuperProperties(Map<String, Object> properties) {
-        this.superProperties.putAll(properties);
+        if (properties == null || properties.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Object> entry : properties.entrySet()) {
+            if (entry.getKey() != null && entry.getValue() != null) {
+                this.superProperties.put(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     @Override
     public Map<String, Object> getSuperProperties() {
-        return this.superProperties;
+        return new HashMap<String, Object>(this.superProperties);
     }
 
     @Override
@@ -314,7 +324,9 @@ public class TDAnalytics implements ITDAnalytics {
         if (isStrictModel && TextUtils.isEmpty(accountId) && TextUtils.isEmpty(distinctId)) {
             throw new InvalidArgumentException("accountId or distinctId must be provided.");
         }
-        Map<String, Object> copyProperties =  properties!=null ? new ConcurrentHashMap<>(properties) : new ConcurrentHashMap<String, Object>();
+        Map<String, Object> copyProperties = properties != null
+                ? new HashMap<>(properties)
+                : new HashMap<String, Object>();
         Map<String, Object> desProperties =  new HashMap<>();
         Map<String, Object> event = new HashMap<>();
         TDCommonUtil.buildData(event,"#distinct_id", distinctId);

@@ -9,7 +9,7 @@ import java.net.URISyntaxException;
 public class BatchConsumer extends TDBatchConsumer {
 
     public BatchConsumer(String serverUrl, String appId) throws URISyntaxException {
-        super(serverUrl, appId, 20, 0, false, 0, "gzip", 0, true);
+        super(serverUrl, appId, 20, DEFAULT_TIMEOUT, false, 0, "gzip", 0, true);
     }
 
     /**
@@ -21,7 +21,7 @@ public class BatchConsumer extends TDBatchConsumer {
      * @throws URISyntaxException exception
      */
     public BatchConsumer(String serverUrl, String appId, boolean isThrowException) throws URISyntaxException {
-        super(serverUrl, appId, 20, 0, false, 0, "gzip", 0, isThrowException);
+        super(serverUrl, appId, 20, DEFAULT_TIMEOUT, false, 0, "gzip", 0, isThrowException);
     }
 
     /**
