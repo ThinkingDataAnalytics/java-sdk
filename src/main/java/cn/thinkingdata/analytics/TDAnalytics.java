@@ -324,10 +324,9 @@ public class TDAnalytics implements ITDAnalytics {
         if (isStrictModel && TextUtils.isEmpty(accountId) && TextUtils.isEmpty(distinctId)) {
             throw new InvalidArgumentException("accountId or distinctId must be provided.");
         }
-        Map<String, Object> copyProperties = properties != null
+        Map<String, Object> desProperties = properties != null
                 ? new HashMap<>(properties)
                 : new HashMap<String, Object>();
-        Map<String, Object> desProperties =  new HashMap<>();
         Map<String, Object> event = new HashMap<>();
         TDCommonUtil.buildData(event,"#distinct_id", distinctId);
         TDCommonUtil.buildData(event,"#account_id", accountId);
@@ -339,7 +338,7 @@ public class TDAnalytics implements ITDAnalytics {
             event.put("#uuid", UUID.randomUUID().toString());
         }
         // Move special properties
-        TDPropertyUtil.moveProperty(event,copyProperties,"#uuid","#time","#ip","#app_id","#first_check_id","#transaction_property","#import_tool_id");
+        TDPropertyUtil.moveProperty(event,desProperties,"#uuid","#time","#ip","#app_id","#first_check_id","#transaction_property","#import_tool_id");
         if (type.getType().contains("track")) {
             if (isStrictModel) {
                 TDCommonUtil.throwEmptyException(eventName,"The event name must be provided.");
@@ -350,12 +349,14 @@ public class TDAnalytics implements ITDAnalytics {
                 }
                 TDCommonUtil.buildData(event,"#event_id", eventId);
             }
-            TDPropertyUtil.mergeProperties(desProperties,superProperties,dynamicSuperProperties!=null ? dynamicSuperProperties.getDynamicSuperProperties():null,copyProperties);
+            // Fill in lower-priority values without another per-event map.
+            // containsKey preserves explicit null values in event/dynamic properties.
+            mergeMissingProperties(desProperties, dynamicSuperProperties != null
+                    ? dynamicSuperProperties.getDynamicSuperProperties() : null);
+            mergeMissingProperties(desProperties, superProperties);
             event.put("#event_name", eventName);
             desProperties.put("#lib", LIB_NAME);
             desProperties.put("#lib_version", LIB_VERSION);
-        } else {
-            TDPropertyUtil.mergeProperties(desProperties,copyProperties);
         }
         if (isStrictModel) {
             TDPropertyUtil.assertProperties(desProperties,type);
@@ -365,6 +366,16 @@ public class TDAnalytics implements ITDAnalytics {
             this.consumer.add(event);
         } catch (Exception e) {
             throw new InvalidArgumentException(e);
+        }
+    }
+
+    private static void mergeMissingProperties(Map<String, Object> target, Map<String, Object> source) {
+        if (source != null) {
+            for (Map.Entry<String, Object> entry : source.entrySet()) {
+                if (!target.containsKey(entry.getKey())) {
+                    target.put(entry.getKey(), entry.getValue());
+                }
+            }
         }
     }
 }

@@ -142,7 +142,17 @@ public class TDBatchConsumer implements ITDConsumer {
             autoFlushTimer = new Timer();
             autoFlushTimer.schedule(new TimerTask() {
                 public void run() {
-                    flushOnce();
+                    try {
+                        flushOnce();
+                    } catch (Exception e) {
+                        // A background failure must not terminate the Timer thread.
+                        // Explicit add/flush calls still follow isThrowException.
+                        try {
+                            TDLogger.println("Automatic flush failed: " + e);
+                        } catch (Exception loggingException) {
+                            // A custom logger must not prevent the next scheduled retry.
+                        }
+                    }
                 }
             }, 1000, interval * 1000L);
         }

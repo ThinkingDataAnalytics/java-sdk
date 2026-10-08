@@ -15,6 +15,7 @@ import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 import static cn.thinkingdata.analytics.TDConstData.DEFAULT_DATE_FORMAT;
 /**
  * Write data to file, it works with LogBus2
@@ -147,12 +148,14 @@ public class TDLoggerConsumer implements ITDConsumer {
     private final int fileSize;
     private Timer autoFlushTimer;
 
-    private final StringBuffer messageBuffer = new StringBuffer();
+    // Guards the buffer, writer lifecycle and file rotation as one operation.
+    private final ReentrantLock writeLock = new ReentrantLock();
+    private final StringBuilder messageBuffer = new StringBuilder();
     private final ThreadLocal<SimpleDateFormat> df;
 
     private LoggerFileWriter loggerWriter;
 
-    private boolean isClose;
+    private volatile boolean isClose;
     private final boolean isThrowException;
 
     /**
@@ -194,7 +197,17 @@ public class TDLoggerConsumer implements ITDConsumer {
             autoFlushTimer = new Timer();
             autoFlushTimer.schedule(new TimerTask() {
                 public void run() {
-                    flush();
+                    try {
+                        flush();
+                    } catch (Exception e) {
+                        // A background failure must not terminate the Timer thread.
+                        // Explicit add/flush calls still follow isThrowException.
+                        try {
+                            TDLogger.println("Automatic flush failed: " + e);
+                        } catch (Exception loggingException) {
+                            // A custom logger must not prevent the next scheduled retry.
+                        }
+                    }
                 }
             }, 1000, config.interval * 1000L);
         }
@@ -220,26 +233,46 @@ public class TDLoggerConsumer implements ITDConsumer {
     }
 
     @Override
-    public synchronized void add(Map<String, Object> message) {
+    public void add(Map<String, Object> message) {
         if (isClose) {
             TDLogger.println("SDK is already closed");
             return;
         }
+        final String formatMsg;
         try {
-            String formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
-            messageBuffer.append(formatMsg);
-            messageBuffer.append("\n");
-            TDLogger.println("Enqueue data: " + formatMsg);
+            formatMsg = JSON.toJSONString(message, DEFAULT_DATE_FORMAT, TDCommonUtil.fastJsonSerializerFeature());
         } catch (JSONException e) {
             throw new RuntimeException("Failed to add data", e);
         }
 
-        if (messageBuffer.length() >= bufferSize) {
-            this.flush();
+        writeLock.lock();
+        try {
+            // close() may have completed while serialization was in progress.
+            if (isClose) {
+                return;
+            }
+            messageBuffer.append(formatMsg).append('\n');
+            if (messageBuffer.length() >= bufferSize) {
+                flushLocked();
+            }
+        } finally {
+            writeLock.unlock();
+        }
+        TDLogger.println("Enqueue data: " + formatMsg);
+    }
+
+    @Override
+    public void flush() {
+        writeLock.lock();
+        try {
+            flushLocked();
+        } finally {
+            writeLock.unlock();
         }
     }
-    @Override
-    public synchronized void flush() {
+
+    // Caller holds writeLock, including across write and clear so failures retain the buffer.
+    private void flushLocked() {
         if (messageBuffer.length() == 0) {
             return;
         }
@@ -263,9 +296,16 @@ public class TDLoggerConsumer implements ITDConsumer {
         }
 
         try {
-            if (loggerWriter.write(messageBuffer)) {
-                TDLogger.print("flush data: " + messageBuffer);
+            // Reuse one snapshot for writing and logging; StringBuilder.toString() copies.
+            String messages = messageBuffer.toString();
+            if (loggerWriter.write(messages)) {
+                // Commit the successful write before invoking application logging code.
                 messageBuffer.setLength(0);
+                try {
+                    TDLogger.print("flush data: " + messages);
+                } catch (Exception loggingException) {
+                    // Diagnostic failures must not turn a successful write into a retry.
+                }
             }
         } catch (Exception e) {
             TDLogger.println("Error: " + e);
@@ -293,16 +333,21 @@ public class TDLoggerConsumer implements ITDConsumer {
     }
 
     @Override
-    public synchronized void close() {
-        this.flush();
-        if (loggerWriter != null) {
-            LoggerFileWriter.removeInstance(loggerWriter);
-            loggerWriter = null;
+    public void close() {
+        writeLock.lock();
+        try {
+            flushLocked();
+            if (loggerWriter != null) {
+                LoggerFileWriter.removeInstance(loggerWriter);
+                loggerWriter = null;
+            }
+            if (autoFlushTimer != null) {
+                autoFlushTimer.cancel();
+            }
+            isClose = true;
+        } finally {
+            writeLock.unlock();
         }
-        if (autoFlushTimer != null) {
-            autoFlushTimer.cancel();
-        }
-        isClose = true;
     }
 
     private static class LoggerFileWriter {
@@ -357,14 +402,14 @@ public class TDLoggerConsumer implements ITDConsumer {
             return this.fileName;
         }
 
-        boolean write(final StringBuffer sb) {
+        boolean write(final String messages) {
             synchronized (this.lockStream) {
                 FileLock lock = null;
                 try {
                     final FileChannel channel = lockStream.getChannel();
                     lock = channel.lock(0, Long.MAX_VALUE, false);
 
-                    outputStream.write(sb.toString().getBytes(StandardCharsets.UTF_8));
+                    outputStream.write(messages.getBytes(StandardCharsets.UTF_8));
                 } catch (Exception e) {
                     TDLogger.println(e.getLocalizedMessage());
                     throw new RuntimeException("failed to write file.", e);
